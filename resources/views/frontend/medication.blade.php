@@ -1,71 +1,106 @@
 @extends('layouts.app')
 
 @section('content')
-    <div class="container py-4">
+    <div class="app-container">
 
-        <!-- Medication Chart -->
-        <div class="card mb-4">
-            <div class="card-header text-white d-flex justify-content-between align-items-center"
-                style="background-color: #022b70;">
-                <h6 class="mb-0">Medication Demand Forecast ({{ $selectedYear }})</h6>
+        <!-- App hero header starts -->
+        <div class="app-hero-header d-flex align-items-center">
+
+            <!-- Breadcrumb starts -->
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <i class="ri-capsule-line lh-1 pe-3 me-3 border-end"></i>
+                    <a href="{{ route('medication') }}">Medication Database</a>
+                </li>
+                <li class="breadcrumb-item text-primary" aria-current="page">
+                    Medication
+                </li>
+            </ol>
+            <!-- Breadcrumb ends -->
+
+            <!-- Sales stats starts -->
+            <div class="ms-auto d-lg-flex d-none flex-row">
+                <div class="d-flex flex-row gap-1 day-sorting">
+                    <button class="btn btn-sm btn-primary">Today</button>
+                    <button class="btn btn-sm">7d</button>
+                    <button class="btn btn-sm">2w</button>
+                    <button class="btn btn-sm">1m</button>
+                    <button class="btn btn-sm">3m</button>
+                    <button class="btn btn-sm">6m</button>
+                    <button class="btn btn-sm">1y</button>
+                </div>
             </div>
-            <div class="card-body">
-                <div id="medicationChart"></div>
-            </div>
+            <!-- Sales stats ends -->
+
         </div>
+        <!-- App Hero header ends -->
+        <div class="container py-4">
 
-        <!-- Medication Table -->
-        <div class="card">
-            <div class="card-header text-white d-flex justify-content-between align-items-center"
-                style="background-color: #022b70;">
-                <h6 class="mb-0">Medication Demand Data</h6>
+            <!-- Medication Chart -->
+            <div class="card mb-4">
+                <div class="card-header text-white d-flex justify-content-between align-items-center"
+                    style="background-color: #022b70;">
+                    <h6 class="mb-0">Medication Demand Forecast ({{ $selectedYear }})</h6>
+                </div>
+                <div class="card-body">
+                    <div id="medicationChart"></div>
+                </div>
+            </div>
 
-                <div class="d-flex gap-2">
-                    <!-- Search input -->
-                    <input type="text" id="medicineSearch" class="form-control form-control-sm"
-                        placeholder="Search medicine...">
+            <!-- Medication Table -->
+            <div class="card">
+                <div class="card-header text-white d-flex justify-content-between align-items-center"
+                    style="background-color: #022b70;">
+                    <h6 class="mb-0">Medication Demand Data</h6>
 
-                    <!-- Year dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="yearDropdown"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            Year: <span id="selectedYear">{{ $selectedYear }}</span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="yearDropdown">
-                            @foreach ($availableYears as $year)
-                                <li><a class="dropdown-item year-option" href="#" data-year="{{ $year }}">{{ $year }}</a></li>
-                            @endforeach
-                        </ul>
+                    <div class="d-flex gap-2">
+                        <!-- Search input -->
+                        <input type="text" id="medicineSearch" class="form-control form-control-sm"
+                            placeholder="Search medicine...">
+
+                        <!-- Year dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="yearDropdown"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                Year: <span id="selectedYear">{{ $selectedYear }}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="yearDropdown">
+                                @foreach ($availableYears as $year)
+                                    <li><a class="dropdown-item year-option" href="#" data-year="{{ $year }}">{{ $year }}</a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center" id="medicationTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medicine</th>
+                                    @foreach ($months as $month)
+                                        <th>{{ $month }}</th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($medications as $medicine)
+                                    <tr>
+                                        <td>{{ $medicine }}</td>
+                                        @foreach ($medicationData[$medicine] as $value)
+                                            <td>{{ $value }}</td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped text-center" id="medicationTable">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Medicine</th>
-                                @foreach ($months as $month)
-                                    <th>{{ $month }}</th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($medications as $medicine)
-                                <tr>
-                                    <td>{{ $medicine }}</td>
-                                    @foreach ($medicationData[$medicine] as $value)
-                                        <td>{{ $value }}</td>
-                                    @endforeach
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
-
     </div>
 @endsection
 

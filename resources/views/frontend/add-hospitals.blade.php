@@ -10,10 +10,10 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
                     <i class="ri-home-8-line lh-1 pe-3 me-3 border-end"></i>
-                    <a href="index.html">Home</a>
+                    <a href="{{ route('add-hospitals') }}">Hospitals</a>
                 </li>
                 <li class="breadcrumb-item text-primary" aria-current="page">
-                    Dashboard
+                    Add Hospital
                 </li>
             </ol>
             <!-- Breadcrumb ends -->

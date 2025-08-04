@@ -22,47 +22,59 @@
             </li>
 
             <li class="treeview {{ request()->is('hospitals*') ? 'active current-page' : '' }}">
-                <a href="#">
+                <a data-bs-toggle="collapse" href="#hospitalsMenu" role="button"
+                    aria-expanded="{{ request()->is('hospitals*') ? 'true' : 'false' }}">
                     <i class="ri-building-2-line"></i>
                     <span class="menu-text">Hospitals</span>
                 </a>
-                <ul class="treeview-menu {{ request()->routeIs('hospitals') ? '' : '' }}">
+
+                <ul class="treeview-menu collapse {{ request()->is('hospitals*') ? 'show' : '' }}" id="hospitalsMenu">
                     <li>
-                        <a href="{{ route('hospitals') }}" class="active-sub">Hospital List</a>
+                        <a href="{{ route('hospitals') }}"
+                            class="{{ request()->routeIs('hospitals') ? 'active-sub' : '' }}">
+                            Hospital List
+                        </a>
                     </li>
                     <li>
-                        <a href="{{ route('add-hospitals') }}">Add Hospital</a>
+                        <a href="{{ route('add-hospitals') }}"
+                            class="{{ request()->routeIs('add-hospitals') ? 'active-sub' : '' }}">
+                            Add Hospital
+                        </a>
                     </li>
                     <li>
-                        <a href="{{ route('edit-hospitals') }}" class="active-sub">Edit Hospital</a>
+                        <a href="{{ route('edit-hospitals') }}"
+                            class="{{ request()->routeIs('edit-hospitals') ? 'active-sub' : '' }}">
+                            Edit Hospital
+                        </a>
                     </li>
                 </ul>
             </li>
-            <li class="">
+
+            <li class="{{ request()->routeIs('medication') ? 'active current-page' : '' }}">
                 <a href="{{ route('medication') }}">
                     <i class="ri-capsule-line"></i>
                     <span class="menu-text">Medication Database</span>
                 </a>
             </li>
-            <li class="">
+            <li class="{{ request()->routeIs('top-diseases') ? 'active current-page' : '' }}">
                 <a href="{{ route('top-diseases') }}">
                     <i class="ri-flask-line"></i>
                     <span class="menu-text">Top Diseases</span>
                 </a>
             </li>
-            <li class="">
+            <li class="{{ request()->routeIs('chronic-diseases') ? 'active current-page' : '' }}">
                 <a href="{{ route('chronic-diseases') }}">
                     <i class="ri-heart-pulse-fill"></i>
                     <span class="menu-text">Chronic Disease</span>
                 </a>
             </li>
-            <li class="">
+            <li class="{{ request()->routeIs('patients') ? 'active current-page' : '' }}">
                 <a href="{{ route('patients') }}">
                     <i class="ri-nurse-line"></i>
                     <span class="menu-text">Total Patients</span>
                 </a>
             </li>
-            <li class="">
+            <li class="{{ request()->routeIs('settings') ? 'active current-page' : '' }}">
                 <a href="{{ route('settings') }}">
                     <i class="ri-settings-3-line"></i>
                     <span class="menu-text">Settings</span>
