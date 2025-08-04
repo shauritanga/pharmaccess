@@ -43,10 +43,12 @@
         @yield('content')
         @yield('scripts')
       </main>
+      @include('partials.footer')
     </div>
 
-    @include('partials.footer')
+
   </div>
+
 
   <!-- ************ JavaScript Files ************ -->
   <!-- Required jQuery first, then Bootstrap Bundle JS -->
