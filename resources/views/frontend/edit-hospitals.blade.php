@@ -144,6 +144,11 @@
 
         </div>
         <!-- App body ends -->
+<<<<<<< HEAD
+=======
+       
+
+>>>>>>> 3ae4440a5efd70bf7f2ce8d8fbba4fd8e3dcdb5f
     </div>
     <!-- App container ends -->
 @endsection

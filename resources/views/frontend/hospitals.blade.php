@@ -248,7 +248,11 @@
             <!-- Row ends -->
 
         </div>
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> 3ae4440a5efd70bf7f2ce8d8fbba4fd8e3dcdb5f
     </div>
 @endsection
 <!-- App container ends -->
