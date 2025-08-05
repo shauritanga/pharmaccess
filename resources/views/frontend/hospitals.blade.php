@@ -1,57 +1,20 @@
 @extends('layouts.app')
 @section('title', 'Hospitals List')
+
 @section('content')
-    <!-- App container starts -->
     <div class="app-container">
-
-        <!-- App hero header starts -->
-        <div class="app-hero-header d-flex align-items-center">
-
-            <!-- Breadcrumb starts -->
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                    <i class="ri-home-8-line lh-1 pe-3 me-3 border-end"></i>
-                    <a href="{{ route('hospitals') }}">Hospitals</a>
-                </li>
-                <li class="breadcrumb-item text-primary" aria-current="page">
-                    Hospitals
-                </li>
-            </ol>
-            <!-- Breadcrumb ends -->
-
-            <!-- Sales stats starts -->
-            <div class="ms-auto d-lg-flex d-none flex-row">
-                <div class="d-flex flex-row gap-1 day-sorting">
-                    <button class="btn btn-sm btn-primary">Today</button>
-                    <button class="btn btn-sm">7d</button>
-                    <button class="btn btn-sm">2w</button>
-                    <button class="btn btn-sm">1m</button>
-                    <button class="btn btn-sm">3m</button>
-                    <button class="btn btn-sm">6m</button>
-                    <button class="btn btn-sm">1y</button>
-                </div>
-            </div>
-            <!-- Sales stats ends -->
-
-        </div>
-        <!-- App Hero header ends -->
-
-        <!-- App body starts -->
         <div class="app-body">
-
-            <!-- Row starts -->
             <div class="row gx-3">
+                <!-- Charts -->
                 <div class="col-sm-6">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5 class="card-title">Health Facilities</h5>
                         </div>
                         <div class="card-body">
-
                             <div class="chart-height-lg">
                                 <div id="total-department" class="auto-align-graph"></div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -61,14 +24,14 @@
                             <h5 class="card-title">Employees</h5>
                         </div>
                         <div class="card-body">
-
                             <div class="chart-height-lg">
                                 <div id="employees" class="auto-align-graph"></div>
                             </div>
-
                         </div>
                     </div>
                 </div>
+
+                <!-- Table Section -->
                 <div class="col-sm-12">
                     <div class="card">
                         <div class="card-header d-flex align-items-center justify-content-between">
@@ -76,166 +39,45 @@
                             <a href="{{ route('add-hospitals') }}" class="btn btn-primary ms-auto">Add Hospital</a>
                         </div>
                         <div class="card-body">
+                            <!-- Search and Page Size -->
+                            <div class="d-flex justify-content-between mb-3">
+                                <input type="text" id="searchInput" class="form-control w-25" placeholder="Search...">
+                                <select id="pageSize" class="form-select w-25">
+                                    <option value="5">Show 5</option>
+                                    <option value="10">Show 10</option>
+                                    <option value="25">Show 25</option>
+                                </select>
+                            </div>
 
-                            <!-- Table starts -->
+                            <!-- Table -->
                             <div class="table-responsive">
-                                <table id="basicExample" class="table m-0 align-middle">
+                                <table class="table table-bordered align-middle" id="hospitalTable">
                                     <thead>
                                         <tr>
                                             <th>#</th>
                                             <th>Hospital Name</th>
                                             <th>Contact Personnel</th>
+                                            <th>Phone Number</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>001</td>
-                                            <td>Al Rahma Hospital</td>
-                                            <td>
-                                                <img src="assets/images/user.png" class="img-shadow img-2x rounded-5 me-1"
-                                                    alt="Doctors Admin Template">
-                                                Deena Cooley
-                                            </td>
-
-                                            <td>
-                                                <div class="d-inline-flex gap-1">
-                                                    <button class="btn btn-outline-danger btn-sm rounded-5"
-                                                        data-bs-toggle="modal" data-bs-target="#delRow">
-                                                        <i class="ri-delete-bin-line"></i>
-                                                    </button>
-                                                    <a href="{{ route('edit-hospitals') }}"
-                                                        class="btn btn-outline-success btn-sm rounded-5"
-                                                        data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        data-bs-title="Edit Department">
-                                                        <i class="ri-edit-box-line"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>002</td>
-                                            <td>Tasakhtaa Global Hospital </td>
-                                            <td>
-                                                <img src="assets/images/user2.png" class="img-shadow img-2x rounded-5 me-1"
-                                                    alt="Doctors Admin Template">
-                                                Hector Banks
-                                            </td>
-
-                                            <td>
-                                                <div class="d-inline-flex gap-1">
-                                                    <button class="btn btn-outline-danger btn-sm rounded-5"
-                                                        data-bs-toggle="modal" data-bs-target="#delRow">
-                                                        <i class="ri-delete-bin-line"></i>
-                                                    </button>
-                                                    <a href="{{ route('edit-hospitals') }}"
-                                                        class="btn btn-outline-success btn-sm rounded-5"
-                                                        data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        data-bs-title="Edit Department">
-                                                        <i class="ri-edit-box-line"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>003</td>
-                                            <td>Mnazi Mmoja Hospital</td>
-                                            <td>
-                                                <img src="assets/images/user3.png" class="img-shadow img-2x rounded-5 me-1"
-                                                    alt="Doctors Admin Template">
-                                                Owen Scott
-                                            </td>
-
-                                            <td>
-                                                <div class="d-inline-flex gap-1">
-                                                    <button class="btn btn-outline-danger btn-sm rounded-5"
-                                                        data-bs-toggle="modal" data-bs-target="#delRow">
-                                                        <i class="ri-delete-bin-line"></i>
-                                                    </button>
-                                                    <a href="{{ route('edit-hospitals') }}"
-                                                        class="btn btn-outline-success btn-sm rounded-5"
-                                                        data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        data-bs-title="Edit Department">
-                                                        <i class="ri-edit-box-line"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>004</td>
-                                            <td>Dr.Mehta’s Hospital</td>
-                                            <td>
-                                                <img src="assets/images/user5.png" class="img-shadow img-2x rounded-5 me-1"
-                                                    alt="Doctors Admin Template">
-                                                Alison Estrada
-                                            </td>
-
-                                            <td>
-                                                <div class="d-inline-flex gap-1">
-                                                    <button class="btn btn-outline-danger btn-sm rounded-5"
-                                                        data-bs-toggle="modal" data-bs-target="#delRow">
-                                                        <i class="ri-delete-bin-line"></i>
-                                                    </button>
-                                                    <a href="{{ route('edit-hospitals') }}"
-                                                        class="btn btn-outline-success btn-sm rounded-5"
-                                                        data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        data-bs-title="Edit Department">
-                                                        <i class="ri-edit-box-line"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>005</td>
-                                            <td>Tawakal Hospital</td>
-                                            <td>
-                                                <img src="assets/images/user4.png" class="img-shadow img-2x rounded-5 me-1"
-                                                    alt="Doctors Admin Template">
-                                                Mitchel Alvarez
-                                            </td>
-
-                                            <td>
-                                                <div class="d-inline-flex gap-1">
-                                                    <button class="btn btn-outline-danger btn-sm rounded-5"
-                                                        data-bs-toggle="modal" data-bs-target="#delRow">
-                                                        <i class="ri-delete-bin-line"></i>
-                                                    </button>
-                                                    <a href="{{ route('edit-hospitals') }}"
-                                                        class="btn btn-outline-success btn-sm rounded-5"
-                                                        data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        data-bs-title="Edit Department">
-                                                        <i class="ri-edit-box-line"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
+                                    <tbody></tbody>
                                 </table>
                             </div>
-                            <!-- Table ends -->
 
-                            <!-- Modal Delete Row -->
-                            <div class="modal fade" id="delRow" tabindex="-1" aria-labelledby="delRowLabel"
-                                aria-hidden="true">
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="delRowModal" tabindex="-1">
                                 <div class="modal-dialog modal-sm">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title" id="delRowLabel">
-                                                Confirm
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
+                                            <h5 class="modal-title">Confirm</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
-                                        <div class="modal-body">
-                                            Are you sure you want to delete the hospital?
-                                        </div>
+                                        <div class="modal-body">Are you sure you want to delete this hospital?</div>
                                         <div class="modal-footer">
-                                            <div class="d-flex justify-content-end gap-2">
-                                                <a href="departments-list.html" class="btn btn-secondary"
-                                                    data-bs-dismiss="modal" aria-label="Close">No</a>
-                                                <a href="departments-list.html" class="btn btn-danger"
-                                                    data-bs-dismiss="modal" aria-label="Close">Yes</a>
-                                            </div>
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">No</button>
+                                            <button type="button" class="btn btn-danger" id="confirmDelete">Yes</button>
                                         </div>
                                     </div>
                                 </div>
@@ -245,14 +87,84 @@
                     </div>
                 </div>
             </div>
-            <!-- Row ends -->
-
         </div>
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> 3ae4440a5efd70bf7f2ce8d8fbba4fd8e3dcdb5f
     </div>
 @endsection
-<!-- App container ends -->
+
+@push('scripts')
+    <script>
+        const defaultHospitals = [
+            { id: 1, name: "Al Rahma Hospital", person: "Deena Cooley", img: "assets/images/user.png", phone: "+255 678 980 123" },
+            { id: 2, name: "Tasakhtaa Global Hospital", person: "Hector Banks", img: "assets/images/user2.png", phone: "+255 678 980 123" },
+            { id: 3, name: "Mnazi Mmoja Hospital", person: "Owen Scott", img: "assets/images/user3.png", phone: "+255 678 980 123" },
+            { id: 4, name: "Dr.Mehta’s Hospital", person: "Alison Estrada", img: "assets/images/user5.png", phone: "+255 678 980 123" },
+            { id: 5, name: "Tawakal Hospital", person: "Mitchel Alvarez", img: "assets/images/user4.png", phone: "+255 678 980 123" }
+        ];
+
+        function loadHospitals() {
+            const data = localStorage.getItem('hospitals');
+            return data ? JSON.parse(data) : defaultHospitals;
+        }
+
+        function saveHospitals(hospitals) {
+            localStorage.setItem('hospitals', JSON.stringify(hospitals));
+        }
+
+        let hospitals = loadHospitals();
+        let deleteHospitalId = null;
+
+        function renderHospitals() {
+            const tbody = document.querySelector('#hospitalTable tbody');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const pageSize = parseInt(document.getElementById('pageSize').value);
+
+            tbody.innerHTML = '';
+
+            let filtered = hospitals.filter(h =>
+                h.name.toLowerCase().includes(searchTerm) ||
+                h.person.toLowerCase().includes(searchTerm)
+            );
+
+            filtered.slice(0, pageSize).forEach((h, index) => {
+                const row = `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${h.name}</td>
+                                <td><img src="${h.img}" class="img-shadow img-2x rounded-5 me-1" alt="User">${h.person}</td>
+                                <td>${h.phone}</td>
+                                <td>
+                                    <div class="d-inline-flex gap-1">
+                                        <button class="btn btn-outline-danger btn-sm rounded-5 deleteBtn" data-id="${h.id}" data-bs-toggle="modal" data-bs-target="#delRowModal">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                        <a href="{{ route('edit-hospitals') }}" class="btn btn-outline-success btn-sm rounded-5"><i class="ri-edit-box-line"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                tbody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.deleteBtn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    deleteHospitalId = parseInt(this.getAttribute('data-id'));
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            renderHospitals();
+
+            document.getElementById('searchInput').addEventListener('input', renderHospitals);
+            document.getElementById('pageSize').addEventListener('change', renderHospitals);
+
+            document.getElementById('confirmDelete').addEventListener('click', function () {
+                if (deleteHospitalId !== null) {
+                    hospitals = hospitals.filter(h => h.id !== deleteHospitalId);
+                    saveHospitals(hospitals);
+                    location.reload();
+                }
+            });
+        });
+    </script>
+@endpush
