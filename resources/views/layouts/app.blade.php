@@ -67,17 +67,23 @@
   <!-- Apex Charts Core -->
   <script src="{{ asset('assets/vendor/apex/apexcharts.min.js') }}"></script>
 
-  <!-- Apex Charts: Department -->
-  <script src="{{ asset('assets/vendor/apex/custom/department/department-list.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/department/employees.js') }}"></script>
+  <!-- Conditional Chart Scripts - Only load on specific pages -->
+  @if(request()->routeIs('home'))
+    <!-- Apex Charts: Home -->
+    <script src="{{ asset('assets/vendor/apex/custom/home/patients.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/treatment.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/available-beds.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/earnings.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/gender-age.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/claims.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/home/age-distribution.js') }}"></script>
+  @endif
 
-  <!-- Apex Charts: Home -->
-  <script src="{{ asset('assets/vendor/apex/custom/home/patients.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/home/treatment.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/home/available-beds.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/home/earnings.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/home/gender-age.js') }}"></script>
-  <script src="{{ asset('assets/vendor/apex/custom/home/claims.js') }}"></script>
+  @if(request()->routeIs('departments.*'))
+    <!-- Apex Charts: Department -->
+    <script src="{{ asset('assets/vendor/apex/custom/department/department-list.js') }}"></script>
+    <script src="{{ asset('assets/vendor/apex/custom/department/employees.js') }}"></script>
+  @endif
 
   <!-- Data Tables -->
   <script src="{{ asset('assets/vendor/datatables/dataTables.min.js') }}"></script>

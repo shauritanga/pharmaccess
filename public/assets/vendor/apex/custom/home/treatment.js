@@ -80,3 +80,6 @@ var options = {
 
 var chart = new ApexCharts(document.querySelector("#treatment"), options);
 chart.render();
+
+// Store chart instance globally for dynamic updates
+window.medicationTrendsChart = chart;

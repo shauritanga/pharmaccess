@@ -158,18 +158,8 @@
 
 
 
-            <!-- Row starts -->
+            <!-- Charts Row starts -->
             <div class="row gx-3">
-                <div class="col-xxl-12 col-sm-12">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Disease Heatmap of Zanzibar</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="availableBeds"></div>
-                        </div>
-                    </div>
-                </div>
                 <div class="col-xxl-6 col-sm-12">
                     <div class="card mb-3">
                         <div class="card-header">
@@ -193,14 +183,14 @@
                 <div class="col-xxl-6 col-sm-12">
                     <div class="card mb-3">
                         <div class="card-header">
-                            <h5 class="card-title">Facility Quality VS. Discase Outcome</h5>
+                            <h5 class="card-title">Facility Quality VS. Disease Outcome</h5>
                         </div>
                         <div class="card-body">
                             <div id="facility"></div>
                         </div>
                     </div>
                 </div>
-                <div class="col-xxl-3 col-sm-6">
+                <div class="col-xxl-6 col-sm-12">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5 class="card-title">Chronic Disease Analysis</h5>
@@ -210,7 +200,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xxl-3 col-sm-6">
+                <div class="col-xxl-6 col-sm-12">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5 class="card-title">High-Risk Pregnancy Trends</h5>
@@ -222,8 +212,33 @@
                         </div>
                     </div>
                 </div>
+                <div class="col-xxl-6 col-sm-12">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title">Patient Age Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="ageDistribution"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <!-- Row ends -->
+            <!-- Charts Row ends -->
+
+            <!-- Heatmap Row starts -->
+            <div class="row gx-3">
+                <div class="col-12">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title">Disease Distribution Heatmap - Zanzibar Districts</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="diseaseHeatmap"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Heatmap Row ends -->
 
         </div>
         <!-- App body ends -->
@@ -231,3 +246,8 @@
     </div>
     <!-- App container ends -->
 @endsection
+
+@push('scripts')
+    <!-- Dashboard Dynamic JavaScript -->
+    <script src="{{ asset('assets/js/dashboard.js') }}"></script>
+@endpush

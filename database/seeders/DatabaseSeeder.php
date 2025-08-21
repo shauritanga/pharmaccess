@@ -19,5 +19,13 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed the disease analytics data
+        $this->call([
+            DistrictSeeder::class,
+            DiseaseSeeder::class,
+            PatientSeeder::class,
+            DiseaseCaseSeeder::class,
+        ]);
     }
 }

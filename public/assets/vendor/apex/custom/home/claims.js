@@ -79,3 +79,6 @@ var options = {
 
 var chart = new ApexCharts(document.querySelector("#claims"), options);
 chart.render();
+
+// Store chart instance globally for dynamic updates
+window.chronicDiseasesChart = chart;

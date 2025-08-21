@@ -1,0 +1,71 @@
+{
+    "districts": [
+        {
+            "name": "Kusini",
+            "latitude": -6.30,
+            "longitude": 39.40,
+            "population": 63156
+        },
+        {
+            "name": "Micheweni",
+            "latitude": -4.95,
+            "longitude": 39.77,
+            "population": 123379
+        },
+        {
+            "name": "Mkoani",
+            "latitude": -5.3833,
+            "longitude": 39.66,
+            "population": 135052
+        },
+        {
+            "name": "Chake Chake",
+            "latitude": -5.25,
+            "longitude": 39.77,
+            "population": 136298
+        },
+        {
+            "name": "Wete",
+            "latitude": -5.0567,
+            "longitude": 39.7289,
+            "population": 148712
+        },
+        {
+            "name": "Magharibi B",
+            "latitude": -5.1833,
+            "longitude": 39.7500,
+            "population": 25000
+        },
+        {
+            "name": "Kaskazini A",
+            "latitude": -5.95,
+            "longitude": 39.30,
+            "population": 157369
+        },
+        {
+            "name": "Kaskazini B",
+            "latitude": -5.90,
+            "longitude": 39.28,
+            "population": 99921
+        },
+        {
+            "name": "Mjini",
+            "latitude": -6.16394,
+            "longitude": 39.19793,
+            "population": 219007
+        },
+        {
+            "name": "Kati",
+            "latitude": -5.1000,
+            "longitude": 39.7800,
+            "population": 132717
+        },
+        {
+            "name": "Magharibi A",
+            "latitude": -5.0833,
+            "longitude": 39.7833,
+            "population": 20000
+        }
+
+    ]
+}

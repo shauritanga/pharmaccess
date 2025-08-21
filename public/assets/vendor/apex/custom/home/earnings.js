@@ -58,3 +58,6 @@ var options = {
 
 var chart = new ApexCharts(document.querySelector("#facility"), options);
 chart.render();
+
+// Store chart instance globally for dynamic updates
+window.facilityPerformanceChart = chart;
