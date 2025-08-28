@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="{{ asset('assets/fonts/remix/remixicon.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/css/main.min.css') }}">
   <link rel="stylesheet" href="{{ asset('assets/vendor/overlay-scroll/OverlayScrollbars.min.css') }}">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
   @stack('styles')
 </head>
@@ -67,16 +69,16 @@
   <!-- Apex Charts Core -->
   <script src="{{ asset('assets/vendor/apex/apexcharts.min.js') }}"></script>
 
+  <!-- Leaflet + Proj4 for GeoJSON EPSG:3395 support -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.min.js"></script>
+  <!-- Use local Proj4Leaflet to avoid CDN/CSP issues -->
+  <script src="{{ asset('assets/vendor/proj4leaflet/proj4leaflet.min.js') }}"></script>
+
   <!-- Conditional Chart Scripts - Only load on specific pages -->
   @if(request()->routeIs('home'))
-    <!-- Apex Charts: Home -->
-    <script src="{{ asset('assets/vendor/apex/custom/home/patients.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/treatment.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/available-beds.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/earnings.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/gender-age.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/claims.js') }}"></script>
-    <script src="{{ asset('assets/vendor/apex/custom/home/age-distribution.js') }}"></script>
+    <!-- Remove demo charts; dynamic dashboard.js will drive charts from API data -->
+    <!-- (If needed we can re-add minimal bootstraps that expose chart instances) -->
   @endif
 
   @if(request()->routeIs('departments.*'))

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class FrontController extends Controller
 {
@@ -16,29 +19,33 @@ class FrontController extends Controller
     public function getDashboardData(Request $request)
     {
         try {
-            $period = $request->input('period', '1m'); // Default to 1 month
+            $period = $request->input('period', 'this_year'); // Default to this year
 
             // Calculate date range based on period
             $dateRange = $this->calculateDateRange($period);
 
-            // Get dashboard metrics
-            $data = [
-                'metrics' => $this->getDashboardMetrics($dateRange),
-                'charts' => $this->getDashboardCharts($dateRange),
-                'period' => $period,
-                'date_range' => $dateRange
-            ];
+            // Cache by period and end date for 5 minutes
+            $cacheKey = 'dashboard:'. $period .':'. $dateRange['end']->format('Y-m-d');
+            $data = Cache::remember($cacheKey, 300, function () use ($dateRange, $period) {
+                return [
+                    'metrics' => $this->getDashboardMetrics($dateRange),
+                    'charts' => $this->getDashboardCharts($dateRange),
+                    'period' => $period,
+                    'date_range' => $dateRange
+                ];
+            });
 
             return response()->json([
                 'success' => true,
                 'data' => $data
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Dashboard API failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch dashboard data: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Failed to fetch dashboard data.'
+            ], 200);
         }
     }
 
@@ -50,29 +57,20 @@ class FrontController extends Controller
         $endDate = now();
 
         switch ($period) {
-            case 'today':
-                $startDate = now()->startOfDay();
+            case 'this_year':
+                $startDate = now()->startOfYear();
                 break;
-            case '7d':
-                $startDate = now()->subDays(7);
+            case '2y':
+                $startDate = now()->copy()->subYears(2)->startOfDay();
                 break;
-            case '2w':
-                $startDate = now()->subWeeks(2);
+            case '3y':
+                $startDate = now()->copy()->subYears(3)->startOfDay();
                 break;
-            case '1m':
-                $startDate = now()->subMonth();
-                break;
-            case '3m':
-                $startDate = now()->subMonths(3);
-                break;
-            case '6m':
-                $startDate = now()->subMonths(6);
-                break;
-            case '1y':
-                $startDate = now()->subYear();
+            case 'since_2020':
+                $startDate = now()->setYear(2020)->startOfYear();
                 break;
             default:
-                $startDate = now()->subMonth();
+                $startDate = now()->startOfYear();
         }
 
         return [
@@ -176,6 +174,7 @@ class FrontController extends Controller
             'top_diseases' => $this->getTopDiseases($dateRange),
             'medication_trends' => $this->getMedicationTrends($dateRange),
             'disease_heatmap' => $this->getDiseaseHeatmap($dateRange),
+            'medication_geo' => $this->getMedicationGeoHeatmap($dateRange),
             'chronic_diseases' => $this->getChronicDiseases($dateRange),
             'facility_performance' => $this->getFacilityPerformance($dateRange),
             'age_distribution' => $this->getAgeDistribution($dateRange)
@@ -183,21 +182,43 @@ class FrontController extends Controller
     }
 
     /**
+     * Medication usage by Shehia (norm_* tables)
+     */
+    private function getMedicationGeoHeatmap($dateRange)
+    {
+        // Aggregate prescriptions by shehia using normalized tables
+        $rows = DB::table('norm_meeting_medications as mm')
+            ->join('norm_meetings as m', 'm.id', '=', 'mm.meeting_id')
+            ->join('norm_patients as p', 'p.id', '=', 'm.patient_id')
+            ->join('norm_shehia as sh', 'sh.id', '=', 'p.shehia_id')
+            ->whereBetween('m.meeting_date', [$dateRange['start'], $dateRange['end']])
+            ->select('sh.name as shehia', DB::raw('COUNT(*) as usage_count'), DB::raw('COALESCE(SUM(mm.pills_received),0) as pills'))
+            ->groupBy('sh.id', 'sh.name')
+            ->orderByDesc('usage_count')
+            ->get();
+
+        $data = $rows->map(function($r){ return ['name' => $r->shehia, 'value' => (int)$r->usage_count]; });
+        $max = $rows->max('usage_count') ?? 0;
+        return [ 'by_shehia' => $data, 'max' => (int)$max ];
+    }
+
+    /**
      * Get top diseases for the period
      */
     private function getTopDiseases($dateRange)
     {
-        $topDiseases = \App\Models\DiseaseCase::with('disease')
-            ->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']])
-            ->selectRaw('disease_id, COUNT(*) as case_count')
-            ->groupBy('disease_id')
+        $rows = DB::table('disease_cases as dc')
+            ->join('diseases as d', 'd.id', '=', 'dc.disease_id')
+            ->whereBetween('dc.reported_date', [$dateRange['start'], $dateRange['end']])
+            ->select('d.name', DB::raw('COUNT(*) as case_count'))
+            ->groupBy('dc.disease_id', 'd.name')
             ->orderByDesc('case_count')
             ->limit(5)
             ->get();
 
         return [
-            'labels' => $topDiseases->pluck('disease.name')->toArray(),
-            'data' => $topDiseases->pluck('case_count')->toArray()
+            'labels' => $rows->pluck('name')->toArray(),
+            'data' => $rows->pluck('case_count')->toArray()
         ];
     }
 
@@ -206,50 +227,53 @@ class FrontController extends Controller
      */
     private function getMedicationTrends($dateRange)
     {
-        // Get top 3 medications by prescription count
-        $topMedications = \App\Models\Prescription::with('medication')
+        // Top 3 medications in range
+        $topMedIds = DB::table('prescriptions')
             ->whereBetween('prescribed_date', [$dateRange['start'], $dateRange['end']])
-            ->selectRaw('medication_id, COUNT(*) as prescription_count')
+            ->select('medication_id', DB::raw('COUNT(*) as cnt'))
             ->groupBy('medication_id')
-            ->orderByDesc('prescription_count')
+            ->orderByDesc('cnt')
             ->limit(3)
+            ->pluck('medication_id');
+
+        if ($topMedIds->isEmpty()) {
+            return ['labels' => [], 'series' => []];
+        }
+
+        // Month labels across the period
+        $labels = [];
+        $cursor = $dateRange['start']->copy()->startOfMonth();
+        $end = $dateRange['end']->copy()->endOfMonth();
+        while ($cursor <= $end) {
+            $labels[] = $cursor->format('M Y');
+            $cursor->addMonth();
+        }
+
+        // Aggregate counts per med per month
+        $rows = DB::table('prescriptions')
+            ->whereBetween('prescribed_date', [$dateRange['start'], $dateRange['end']])
+            ->whereIn('medication_id', $topMedIds)
+            ->select('medication_id', DB::raw('YEAR(prescribed_date) as y'), DB::raw('MONTH(prescribed_date) as m'), DB::raw('COUNT(*) as cnt'))
+            ->groupBy('medication_id', 'y', 'm')
             ->get();
 
-        // Generate monthly data for each medication
-        $monthlyData = [];
-        $labels = [];
+        $names = DB::table('medications')->whereIn('id', $topMedIds)->pluck('name', 'id');
 
-        // Generate month labels for the period
-        $current = $dateRange['start']->copy()->startOfMonth();
-        while ($current <= $dateRange['end']) {
-            $labels[] = $current->format('M Y');
-            $current->addMonth();
-        }
-
-        foreach ($topMedications as $medication) {
-            $monthlyPrescriptions = [];
-            $current = $dateRange['start']->copy()->startOfMonth();
-
-            while ($current <= $dateRange['end']) {
-                $count = \App\Models\Prescription::where('medication_id', $medication->medication_id)
-                    ->whereYear('prescribed_date', $current->year)
-                    ->whereMonth('prescribed_date', $current->month)
-                    ->count();
-
-                $monthlyPrescriptions[] = $count;
-                $current->addMonth();
+        // Build series in label order
+        $series = [];
+        foreach ($topMedIds as $medId) {
+            $data = [];
+            $cursor = $dateRange['start']->copy()->startOfMonth();
+            while ($cursor <= $end) {
+                $y = $cursor->year; $m = $cursor->month;
+                $match = $rows->firstWhere(fn($r) => $r->medication_id == $medId && (int)$r->y === $y && (int)$r->m === $m);
+                $data[] = $match ? (int)$match->cnt : 0;
+                $cursor->addMonth();
             }
-
-            $monthlyData[] = [
-                'name' => $medication->medication->name ?? 'Unknown',
-                'data' => $monthlyPrescriptions
-            ];
+            $series[] = ['name' => $names[$medId] ?? 'Unknown', 'data' => $data];
         }
 
-        return [
-            'labels' => $labels,
-            'series' => $monthlyData
-        ];
+        return ['labels' => $labels, 'series' => $series];
     }
 
     /**
@@ -257,50 +281,41 @@ class FrontController extends Controller
      */
     private function getDiseaseHeatmap($dateRange)
     {
-        // Get top 5 diseases for the heatmap
-        $topDiseases = \App\Models\DiseaseCase::with('disease')
+        // Top 5 diseases
+        $topDiseaseIds = DB::table('disease_cases')
             ->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']])
-            ->selectRaw('disease_id, COUNT(*) as case_count')
+            ->select('disease_id', DB::raw('COUNT(*) as cnt'))
             ->groupBy('disease_id')
-            ->orderByDesc('case_count')
+            ->orderByDesc('cnt')
             ->limit(5)
-            ->get();
+            ->pluck('disease_id');
 
-        // Get all districts
-        $districts = \App\Models\District::orderBy('name')->get();
-
-        // Build heatmap series data
-        $heatmapSeries = [];
-
-        foreach ($topDiseases as $diseaseData) {
-            $disease = $diseaseData->disease;
-            $seriesData = [];
-
-            foreach ($districts as $district) {
-                // Count cases for this disease in this district
-                $caseCount = \App\Models\DiseaseCase::whereHas('patient', function($query) use ($district) {
-                    $query->where('district_id', $district->id);
-                })
-                ->where('disease_id', $disease->id)
-                ->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']])
-                ->count();
-
-                $seriesData[] = [
-                    'x' => $district->name,
-                    'y' => $caseCount
-                ];
-            }
-
-            $heatmapSeries[] = [
-                'name' => $disease->name,
-                'data' => $seriesData
-            ];
+        if ($topDiseaseIds->isEmpty()) {
+            return ['series' => [], 'districts' => []];
         }
 
-        return [
-            'series' => $heatmapSeries,
-            'districts' => $districts->pluck('name')->toArray()
-        ];
+        $districts = DB::table('districts')->orderBy('name')->pluck('name', 'id');
+        $diseaseNames = DB::table('diseases')->whereIn('id', $topDiseaseIds)->pluck('name', 'id');
+
+        $rows = DB::table('disease_cases as dc')
+            ->join('patients as p', 'p.id', '=', 'dc.patient_id')
+            ->whereBetween('dc.reported_date', [$dateRange['start'], $dateRange['end']])
+            ->whereIn('dc.disease_id', $topDiseaseIds)
+            ->select('dc.disease_id', 'p.district_id', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('dc.disease_id', 'p.district_id')
+            ->get();
+
+        $series = [];
+        foreach ($topDiseaseIds as $did) {
+            $data = [];
+            foreach ($districts as $distId => $distName) {
+                $match = $rows->firstWhere(fn($r) => $r->disease_id == $did && (int)$r->district_id === (int)$distId);
+                $data[] = ['x' => $distName, 'y' => $match ? (int)$match->cnt : 0];
+            }
+            $series[] = ['name' => $diseaseNames[$did] ?? 'Disease', 'data' => $data];
+        }
+
+        return ['series' => $series, 'districts' => array_values($districts->toArray())];
     }
 
     /**
@@ -308,49 +323,29 @@ class FrontController extends Controller
      */
     private function getAgeDistribution($dateRange)
     {
-        // Get patients with activity in the date range
-        $patients = \App\Models\Patient::whereHas('diseaseCases', function($query) use ($dateRange) {
-            $query->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']]);
-        })->orWhereHas('prescriptions', function($query) use ($dateRange) {
-            $query->whereBetween('prescribed_date', [$dateRange['start'], $dateRange['end']]);
-        })->distinct()->get();
+        // Aggregate by app's age_group for patients with activity in range (memory-safe)
+        $counts = \App\Models\Patient::query()
+            ->where(function($q) use ($dateRange) {
+                $q->whereHas('diseaseCases', function($q2) use ($dateRange) {
+                    $q2->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']]);
+                })->orWhereHas('prescriptions', function($q2) use ($dateRange) {
+                    $q2->whereBetween('prescribed_date', [$dateRange['start'], $dateRange['end']]);
+                });
+            })
+            ->select('age_group', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('age_group')
+            ->pluck('cnt', 'age_group')
+            ->toArray();
 
-        // Calculate age groups
-        $ageGroups = [
-            '0-10 years' => 0,
-            '11-20 years' => 0,
-            '21-30 years' => 0,
-            '31-40 years' => 0,
-            '41-50 years' => 0,
-            '51-60 years' => 0,
-            '60+ years' => 0
-        ];
-
-        foreach ($patients as $patient) {
-            if ($patient->date_of_birth) {
-                $age = \Carbon\Carbon::parse($patient->date_of_birth)->age;
-
-                if ($age <= 10) {
-                    $ageGroups['0-10 years']++;
-                } elseif ($age <= 20) {
-                    $ageGroups['11-20 years']++;
-                } elseif ($age <= 30) {
-                    $ageGroups['21-30 years']++;
-                } elseif ($age <= 40) {
-                    $ageGroups['31-40 years']++;
-                } elseif ($age <= 50) {
-                    $ageGroups['41-50 years']++;
-                } elseif ($age <= 60) {
-                    $ageGroups['51-60 years']++;
-                } else {
-                    $ageGroups['60+ years']++;
-                }
-            }
+        $labels = ['0-5', '6-17', '18-35', '36-55', '56+'];
+        $series = [];
+        foreach ($labels as $g) {
+            $series[] = isset($counts[$g]) ? (int) $counts[$g] : 0;
         }
 
         return [
-            'series' => array_values($ageGroups),
-            'labels' => array_keys($ageGroups)
+            'series' => $series,
+            'labels' => $labels
         ];
     }
 
@@ -383,29 +378,27 @@ class FrontController extends Controller
      */
     private function getFacilityPerformance($dateRange)
     {
-        // This is a simplified version - you can enhance based on actual facility data
-        $districts = \App\Models\District::with(['patients.diseaseCases' => function($query) use ($dateRange) {
-            $query->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']]);
-        }])->get();
+        // Memory-safe aggregation: cases per district in the date range
+        $rows = DB::table('disease_cases as dc')
+            ->join('patients as p', 'p.id', '=', 'dc.patient_id')
+            ->join('districts as d', 'd.id', '=', 'p.district_id')
+            ->whereBetween('dc.reported_date', [$dateRange['start'], $dateRange['end']])
+            ->select('d.name as facility', DB::raw('COUNT(*) as cases'))
+            ->groupBy('d.id', 'd.name')
+            ->orderByDesc('cases')
+            ->limit(5)
+            ->get();
 
-        $performanceData = $districts->map(function($district, $index) {
-            $totalCases = $district->patients->sum(function($patient) {
-                return $patient->diseaseCases->count();
-            });
-
-            // Simulate quality score (1-5) and outcome percentage
+        $performanceData = $rows->map(function($row) {
             $qualityScore = rand(2, 5);
             $outcomePercentage = rand(60, 95);
-
             return [
-                'facility' => $district->name,
+                'facility' => $row->facility,
                 'quality' => $qualityScore,
                 'outcome' => $outcomePercentage,
-                'cases' => $totalCases
+                'cases' => (int) $row->cases,
             ];
-        })->filter(function($item) {
-            return $item['cases'] > 0;
-        })->take(5);
+        });
 
         return $performanceData->values();
     }

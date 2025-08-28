@@ -24,13 +24,10 @@
             <!-- Sales stats starts -->
             <div class="ms-auto d-lg-flex d-none flex-row">
                 <div class="d-flex flex-row gap-1 day-sorting">
-                    <button class="btn btn-sm btn-primary">Today</button>
-                    <button class="btn btn-sm">7d</button>
-                    <button class="btn btn-sm">2w</button>
-                    <button class="btn btn-sm">1m</button>
-                    <button class="btn btn-sm">3m</button>
-                    <button class="btn btn-sm">6m</button>
-                    <button class="btn btn-sm">1y</button>
+                    <button class="btn btn-sm btn-primary">This Year</button>
+                    <button class="btn btn-sm">2 Years</button>
+                    <button class="btn btn-sm">3 Years</button>
+                    <button class="btn btn-sm">Since 2020</button>
                 </div>
             </div>
             <!-- Sales stats ends -->
@@ -55,8 +52,8 @@
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column">
-                                    <h2 class="lh-1">1890</h2>
-                                    <p class="m-0">Total Patients</p>
+                                    <h2 class="lh-1" id="metric-total-patients">--</h2>
+                                    <p class="m-0" id="label-total-patients">Total Patients</p>
                                 </div>
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-1">
@@ -82,8 +79,8 @@
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column">
-                                    <h2 class="lh-1">360</h2>
-                                    <p class="m-0">Health Facilities</p>
+                                    <h2 class="lh-1" id="metric-health-facilities">--</h2>
+                                    <p class="m-0" id="label-health-facilities">Health Facilities</p>
                                 </div>
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-1">
@@ -109,8 +106,8 @@
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column">
-                                    <h2 class="lh-1">980</h2>
-                                    <p class="m-0">Medication</p>
+                                    <h2 class="lh-1" id="metric-prescriptions">--</h2>
+                                    <p class="m-0" id="label-prescriptions">Prescriptions</p>
                                 </div>
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-1">
@@ -136,8 +133,8 @@
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column">
-                                    <h2 class="lh-1">1.3000</h2>
-                                    <p class="m-0">Chronic disease</p>
+                                    <h2 class="lh-1" id="metric-disease-cases">--</h2>
+                                    <p class="m-0" id="label-disease-cases">Disease Cases</p>
                                 </div>
                             </div>
                             <div class="d-flex align-items-end justify-content-between mt-1">
@@ -157,6 +154,20 @@
             <!-- Row ends -->
 
 
+
+            <!-- Medication Usage Geo Heatmap (Shehia) -->
+            <div class="row gx-3">
+                <div class="col-12">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title">Medication Usage by Shehia</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="medicationGeo"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Charts Row starts -->
             <div class="row gx-3">
@@ -249,5 +260,6 @@
 
 @push('scripts')
     <!-- Dashboard Dynamic JavaScript -->
-    <script src="{{ asset('assets/js/dashboard.js') }}"></script>
+    <script src="{{ asset('assets/js/dashboard.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('assets/js/geo-heatmaps.js') }}?v={{ time() }}"></script>
 @endpush

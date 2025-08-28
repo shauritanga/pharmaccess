@@ -62,18 +62,18 @@
                     <span class="menu-text">Medication</span>
                 </a>
             </li>
-            <!-- <li class="{{ request()->routeIs('chronic-diseases') ? 'active current-page' : '' }}">
+            <li class="{{ request()->routeIs('chronic-diseases') ? 'active current-page' : '' }}">
                 <a href="{{ route('chronic-diseases') }}">
                     <i class="ri-heart-pulse-fill"></i>
                     <span class="menu-text">Chronic Disease</span>
                 </a>
-            </li> -->
-            <!-- <li class="{{ request()->routeIs('patients') ? 'active current-page' : '' }}">
+            </li>
+            <li class="{{ request()->routeIs('patients') ? 'active current-page' : '' }}">
                 <a href="{{ route('patients') }}">
                     <i class="ri-nurse-line"></i>
-                    <span class="menu-text">Total Patients</span>
+                    <span class="menu-text">Patients</span>
                 </a>
-            </li> -->
+            </li>
             <li class="{{ request()->routeIs('settings') ? 'active current-page' : '' }}">
                 <a href="{{ route('settings') }}">
                     <i class="ri-settings-3-line"></i>

@@ -6,11 +6,12 @@
 (function() {
     'use strict';
 
-    let currentPeriod = '1m';
+    let currentPeriod = 'this_year';
     let dashboardData = null;
 
     // Initialize dashboard when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
         initializeDashboard();
         setupEventListeners();
     });
@@ -54,16 +55,13 @@
      */
     function getPeriodFromButtonText(text) {
         const periodMap = {
-            'Today': 'today',
-            '7d': '7d',
-            '2w': '2w',
-            '1m': '1m',
-            '3m': '3m',
-            '6m': '6m',
-            '1y': '1y'
+            'This Year': 'this_year',
+            '2 Years': '2y',
+            '3 Years': '3y',
+            'Since 2020': 'since_2020'
         };
-        
-        return periodMap[text] || '1m';
+
+        return periodMap[text] || 'this_year';
     }
 
     /**
@@ -108,54 +106,119 @@
      * Update metric cards with new data
      */
     function updateMetrics(metrics) {
-        // Update Total Patients
-        updateMetricCard('.col-xl-3:nth-child(1) .card', metrics.total_patients);
-
-        // Update Health Facilities
-        updateMetricCard('.col-xl-3:nth-child(2) .card', metrics.health_facilities);
-
-        // Update Prescriptions (was "Medication")
-        updateMetricCard('.col-xl-3:nth-child(3) .card', metrics.prescriptions, 'Prescriptions');
-
-        // Update Disease Cases (was "Chronic disease")
-        updateMetricCard('.col-xl-3:nth-child(4) .card', metrics.disease_cases, 'Disease Cases');
+        // Update metric values by ID to avoid brittle selectors
+        setMetric('#metric-total-patients', metrics.total_patients);
+        setMetric('#metric-health-facilities', metrics.health_facilities);
+        setMetric('#metric-prescriptions', metrics.prescriptions, '#label-prescriptions', 'Prescriptions');
+        setMetric('#metric-disease-cases', metrics.disease_cases, '#label-disease-cases', 'Disease Cases');
     }
 
     /**
-     * Update individual metric card
+     * Update metric by IDs
      */
-    function updateMetricCard(selector, metric, customLabel = null) {
-        const card = document.querySelector(selector);
-        if (!card) return;
-        
-        // Update value
-        const valueElement = card.querySelector('h2');
-        if (valueElement) {
-            valueElement.textContent = metric.value;
+    function setMetric(valueSelector, metric, labelSelector = null, customLabel = null) {
+        const valueEl = document.querySelector(valueSelector);
+        if (valueEl) valueEl.textContent = metric?.value ?? '--';
+        if (labelSelector && customLabel) {
+            const labelEl = document.querySelector(labelSelector);
+            if (labelEl) labelEl.textContent = customLabel;
         }
-        
-        // Update label if provided
-        if (customLabel) {
-            const labelElement = card.querySelector('p');
-            if (labelElement) {
-                labelElement.textContent = customLabel;
+    }
+
+    /**
+     * Initialize Apex charts if not already present
+     */
+    function initCharts() {
+        // Top Diseases (bar)
+        if (!window.topDiseasesChart) {
+            const el = document.querySelector('#topDiseases');
+            if (el) {
+                window.topDiseasesChart = new ApexCharts(el, {
+                    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                    series: [{ data: [] }],
+                    xaxis: { categories: [] }
+                });
+                window.topDiseasesChart.render();
             }
         }
-        
-        // Update change percentage
-        const changeElement = card.querySelector('.text-end p');
-        if (changeElement) {
-            changeElement.textContent = metric.change;
-            
-            // Update color based on trend
-            changeElement.className = `mb-0 text-${getTrendColor(metric.trend)}`;
+
+        // Medication Trends (line)
+        if (!window.medicationTrendsChart) {
+            const el = document.querySelector('#treatment');
+            if (el) {
+                window.medicationTrendsChart = new ApexCharts(el, {
+                    chart: { type: 'line', height: 300, toolbar: { show: false } },
+                    series: [],
+                    xaxis: { categories: [] }
+                });
+                window.medicationTrendsChart.render();
+            }
         }
-        
-        // Update trend badge
-        const badgeElement = card.querySelector('.badge');
-        if (badgeElement) {
-            const periodText = getPeriodText(currentPeriod);
-            badgeElement.textContent = periodText;
+
+        // Chronic Diseases (bar)
+        if (!window.chronicDiseasesChart) {
+            const el = document.querySelector('#claims');
+            if (el) {
+                window.chronicDiseasesChart = new ApexCharts(el, {
+                    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                    series: [{ data: [] }],
+                    xaxis: { categories: [] }
+                });
+                window.chronicDiseasesChart.render();
+            }
+        }
+
+        // Facility Performance (bubble)
+        if (!window.facilityPerformanceChart) {
+            const el = document.querySelector('#facility');
+            if (el) {
+                window.facilityPerformanceChart = new ApexCharts(el, {
+                    chart: { type: 'bubble', height: 300, toolbar: { show: false } },
+                    series: [{ data: [] }],
+                    xaxis: { title: { text: 'Quality' } },
+                    yaxis: { title: { text: 'Outcome' } }
+                });
+                window.facilityPerformanceChart.render();
+            }
+        }
+
+        // Disease Heatmap
+        if (!window.diseaseHeatmapChart) {
+            const el = document.querySelector('#diseaseHeatmap');
+            if (el) {
+                window.diseaseHeatmapChart = new ApexCharts(el, {
+                    chart: { type: 'heatmap', height: 300, toolbar: { show: false } },
+                    series: [],
+                    xaxis: { categories: [] }
+                });
+                window.diseaseHeatmapChart.render();
+            }
+        }
+
+        // Gender & Age line chart placeholder (optional)
+        if (!window.genderAgeChart) {
+            const el = document.querySelector('#genderAge');
+            if (el) {
+                window.genderAgeChart = new ApexCharts(el, {
+                    chart: { type: 'line', height: 300, toolbar: { show: false } },
+                    series: [],
+                    xaxis: { categories: [] }
+                });
+                window.genderAgeChart.render();
+            }
+        }
+
+        // Age Distribution (bar)
+        if (!window.ageDistributionChart) {
+            const el = document.querySelector('#ageDistribution');
+            if (el) {
+                window.ageDistributionChart = new ApexCharts(el, {
+                    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                    series: [{ name: 'Patients', data: [] }],
+                    xaxis: { categories: [] }
+                });
+                window.ageDistributionChart.render();
+            }
         }
     }
 
@@ -176,15 +239,12 @@
      */
     function getPeriodText(period) {
         const periodTexts = {
-            'today': 'today',
-            '7d': 'last 7 days',
-            '2w': 'last 2 weeks',
-            '1m': 'this month',
-            '3m': 'last 3 months',
-            '6m': 'last 6 months',
-            '1y': 'this year'
+            'this_year': 'this year',
+            '2y': 'last 2 years',
+            '3y': 'last 3 years',
+            'since_2020': 'since 2020'
         };
-        
+
         return periodTexts[period] || 'this period';
     }
 
@@ -309,17 +369,11 @@
      * Update age distribution chart
      */
     function updateAgeDistributionChart(data) {
-        if (window.ageDistributionChart && window.ageDistributionChart.updateSeries) {
-            // Update the donut chart with new series data
-            window.ageDistributionChart.updateSeries(data.series);
-
-            // Update labels if needed
-            if (data.labels) {
-                window.ageDistributionChart.updateOptions({
-                    labels: data.labels
-                });
-            }
-        }
+        if (!window.ageDistributionChart) return;
+        const labels = data.labels || [];
+        const series = [{ name: 'Patients', data: data.series || [] }];
+        window.ageDistributionChart.updateOptions({ xaxis: { categories: labels } });
+        window.ageDistributionChart.updateSeries(series);
     }
 
     /**
