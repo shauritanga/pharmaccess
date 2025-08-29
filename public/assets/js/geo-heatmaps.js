@@ -101,73 +101,58 @@
 
   function renderGeo(mapKind, period){
     // mapKind: 'disease' or 'medication'
-    const isDisease = mapKind === 'disease';
-    const containerId = isDisease ? 'diseaseHeatmap' : 'medicationGeo';
-    const legendTitle = isDisease ? 'Cases' : 'Prescriptions';
+    const isShehia = mapKind === 'shehia';
+    const containerId = isShehia ? 'shehiaMap' : (mapKind === 'medication' ? 'medicationGeo' : '');
+    const legendTitle = isShehia ? 'Cases' : 'Prescriptions';
 
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    const mapDivId = isDisease ? 'map-heat' : 'map-med-geo';
+    const mapDivId = isShehia ? 'map-shehia' : 'map-med-geo';
     if (!document.getElementById(mapDivId)) {
       container.innerHTML = `<div id="${mapDivId}" style="height:90vh;width:100%"></div>`;
-      if (isDisease) diseaseMap = L.map(mapDivId);
+      if (isShehia) diseaseMap = L.map(mapDivId);
       else medicationMap = L.map(mapDivId);
-      ensureBasemap(isDisease ? diseaseMap : medicationMap);
-      const m = isDisease ? diseaseMap : medicationMap;
-      // Set a sensible default view over Zanzibar (Stone Town area) so tiles load even without bounds
+      ensureBasemap(isShehia ? diseaseMap : medicationMap);
+      const m = isShehia ? diseaseMap : medicationMap;
       try { m.setView([-6.165, 39.201], 9); } catch(e){}
-      // Give the browser a tick to lay out the container, then invalidate size
       requestAnimationFrame(() => m.invalidateSize());
       setTimeout(() => m.invalidateSize(), 50);
     }
 
     setStatus(containerId, 'Loading map data...');
 
-    const mapRef = isDisease ? diseaseMap : medicationMap;
-    const oldLayer = isDisease ? diseaseLayer : medicationLayer;
+    const mapRef = isShehia ? diseaseMap : medicationMap;
+    const oldLayer = isShehia ? diseaseLayer : medicationLayer;
 
-    const oldLegend = isDisease ? diseaseLegend : medicationLegend;
+    const oldLegend = isShehia ? diseaseLegend : medicationLegend;
 
-    // Fetch dashboard data (for values) + GeoJSON (geometry)
+    // Fetch shehia stats (cases + meds) + GeoJSON (geometry) with timeout
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 15000);
     Promise.all([
-      fetch(`/api/dashboard?period=${period}`).then(r=>r.json()).catch(e=>({success:false,error:e})),
-      fetch('/data/zanibar_kata2.geojson', { cache:'no-store' }).then(r=>r.ok?r.json():Promise.reject(new Error('GeoJSON 404')))
+      fetch(`/api/shehia/stats?period=${period}`, { signal: ctrl.signal }).then(r=>r.ok?r.json():{success:false}).catch(()=>({success:false})),
+      fetch('/data/zanibar_kata2.geojson', { cache:'no-store', signal: ctrl.signal }).then(r=>r.ok?r.json():Promise.reject(new Error('GeoJSON 404')))
     ]).then(([api, geojson]) => {
+      clearTimeout(to);
       // Defensive: ensure we have a valid FeatureCollection before proceeding
       if (!geojson || geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features)) {
         setStatus(containerId, 'Invalid GeoJSON format');
         console.error('Invalid GeoJSON:', geojson);
         return;
       }
-      if (!api || api.success === false) {
-        // Proceed with empty counts so we still draw geometry
-        console.warn('Map API data unavailable; rendering base polygons only');
-        clearStatus(containerId);
-      } else {
-        clearStatus(containerId);
-      }
+      clearStatus(containerId);
 
-      // Build value map (normalized by name)
-      let counts = {}; let maxVal = 0;
-      if (isDisease) {
-        const heat = api.data?.charts?.disease_heatmap;
-        const tmp = {};
-        (heat?.series||[]).forEach(s => (s.data||[]).forEach(d => {
-          const key = normalizeName(d.x);
-          tmp[key] = (tmp[key]||0) + (d.y||0);
-        }));
-        counts = tmp;
-        maxVal = Object.values(counts).reduce((a,b)=>Math.max(a,b),0);
-      } else {
-        const med = api.data?.charts?.medication_geo;
-        const tmp = {};
-        (med?.by_shehia||[]).forEach(row => {
-          const key = normalizeName(row.name);
-          tmp[key] = (tmp[key]||0) + (row.value||0);
+      // Build lookup maps by shehia
+      const mapCases = {}; const mapMeds = {};
+      let maxVal = 0;
+      if (api && api.success && api.data && Array.isArray(api.data.stats)) {
+        api.data.stats.forEach(row => {
+          const key = normalizeName(row.shehia);
+          mapCases[key] = row.disease_cases || 0;
+          mapMeds[key] = row.meds_prescribed || 0;
+          maxVal = Math.max(maxVal, row.disease_cases || 0); // color scale by cases
         });
-        counts = tmp;
-        maxVal = Object.values(counts).reduce((a,b)=>Math.max(a,b),0);
       }
 
       // Remove prior layer/legend
@@ -180,16 +165,22 @@
         const wgs84 = toWGS84(geojson);
         layer = L.geoJSON(wgs84, {
           style: f => {
-            const raw = isDisease ? (f.properties?.dist_name || f.properties?.ward_name || f.properties?.counc_name)
-                                   : (f.properties?.ward_name || f.properties?.dist_name || f.properties?.counc_name);
-            const v = counts[normalizeName(raw)] || 0;
+            const raw = (f.properties?.ward_name || f.properties?.dist_name || f.properties?.counc_name || f.properties?.name);
+            const v = mapCases[normalizeName(raw)] || 0;
+    }).catch(err => {
+      clearTimeout(to);
+      console.error('Heatmap fetch failed', err);
+      setStatus(containerId, 'Failed to load map data. Please try again.');
+    });
             return { color:'#222', weight:2, opacity:1, fillOpacity:0.55, fillColor:getColor(v, maxVal) };
           },
           onEachFeature: (feature, l) => {
-            const raw = isDisease ? (feature.properties?.dist_name || feature.properties?.ward_name || feature.properties?.counc_name)
-                                   : (feature.properties?.ward_name || feature.properties?.dist_name || feature.properties?.counc_name);
-            const v = counts[normalizeName(raw)] || 0;
-            l.bindTooltip(`${raw}: ${v} ${legendTitle.toLowerCase()}`, {sticky:true});
+            const raw = (feature.properties?.ward_name || feature.properties?.dist_name || feature.properties?.counc_name || feature.properties?.name);
+            const key = normalizeName(raw);
+            const cases = mapCases[key] || 0;
+            const meds = mapMeds[key] || 0;
+            const html = `<div><b>${raw}</b><br/>Disease cases: ${cases}<br/>Meds prescribed: ${meds}</div>`;
+            l.bindTooltip(html, {sticky:true});
           }
         });
       } catch (e) {
@@ -223,13 +214,13 @@
     try {
       const manager = window.dashboardManager;
       const p = manager ? manager.getCurrentPeriod() : 'this_year';
-      if (document.getElementById('diseaseHeatmap')) renderGeo('disease', p);
+      if (document.getElementById('shehiaMap')) renderGeo('shehia', p);
       if (document.getElementById('medicationGeo')) renderGeo('medication', p);
       if (manager) {
         const oldRefresh = manager.refreshData;
         manager.refreshData = function(){
           const period = manager.getCurrentPeriod();
-          if (document.getElementById('diseaseHeatmap')) renderGeo('disease', period);
+          if (document.getElementById('shehiaMap')) renderGeo('shehia', period);
           if (document.getElementById('medicationGeo')) renderGeo('medication', period);
           return oldRefresh();
         };

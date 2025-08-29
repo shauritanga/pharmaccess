@@ -20,34 +20,11 @@
                     <span class="menu-text">Dashboard</span>
                 </a>
             </li>
-
-            <li class="treeview {{ request()->is('hospitals*') ? 'active current-page' : '' }}">
-                <a data-bs-toggle="collapse" href="#hospitalsMenu" role="button"
-                    aria-expanded="{{ request()->is('hospitals*') ? 'true' : 'false' }}">
+            <li class="{{ request()->routeIs('health-facilities') ? 'active current-page' : '' }}">
+                <a href="{{ route('health-facilities') }}">
                     <i class="ri-building-2-line"></i>
-                    <span class="menu-text">Hospitals</span>
+                    <span class="menu-text">Health Facilities</span>
                 </a>
-
-                <ul class="treeview-menu collapse {{ request()->is('hospitals*') ? 'show' : '' }}" id="hospitalsMenu">
-                    <li>
-                        <a href="{{ route('hospitals') }}"
-                            class="{{ request()->routeIs('hospitals') ? 'active-sub' : '' }}">
-                            Hospital List
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('add-hospitals') }}"
-                            class="{{ request()->routeIs('add-hospitals') ? 'active-sub' : '' }}">
-                            Add Hospital
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{{ route('edit-hospitals') }}"
-                            class="{{ request()->routeIs('edit-hospitals') ? 'active-sub' : '' }}">
-                            Edit Hospital
-                        </a>
-                    </li>
-                </ul>
             </li>
            
             <li class="{{ request()->routeIs('top-diseases') ? 'active current-page' : '' }}">
@@ -80,6 +57,24 @@
                     <span class="menu-text">Settings</span>
                 </a>
             </li>
+
+            @auth
+              @if (auth()->user()->role === 'admin')
+              <li class="treeview {{ request()->is('admin*') ? 'active current-page' : '' }}">
+                  <a data-bs-toggle="collapse" href="#adminMenu" role="button" aria-expanded="{{ request()->is('admin*') ? 'true' : 'false' }}">
+                      <i class="ri-shield-user-line"></i>
+                      <span class="menu-text">Administration</span>
+                  </a>
+                  <ul class="treeview-menu collapse {{ request()->is('admin*') ? 'show' : '' }}" id="adminMenu">
+                      <li>
+                          <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.index') ? 'active-sub' : '' }}">
+                              Users
+                          </a>
+                      </li>
+                  </ul>
+              </li>
+              @endif
+            @endauth
         </ul>
     </div>
     <!-- Sidebar menu ends -->

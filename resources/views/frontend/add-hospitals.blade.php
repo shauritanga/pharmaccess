@@ -10,7 +10,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item">
                     <i class="ri-home-8-line lh-1 pe-3 me-3 border-end"></i>
-                    <a href="{{ route('add-hospitals') }}">Hospitals</a>
+                    <a href="{{ route('health-facilities') }}">Health Facilities</a>
                 </li>
                 <li class="breadcrumb-item text-primary" aria-current="page">
                     Add Hospital
@@ -94,10 +94,10 @@
 
                                 <div class="col-sm-12">
                                     <div class="d-flex gap-2 justify-content-end">
-                                        <a href="{{ route('hospitals') }}" class="btn btn-outline-secondary">
+                                        <a href="{{ route('health-facilities') }}" class="btn btn-outline-secondary">
                                             Cancel
                                         </a>
-                                        <a href="{{ route('hospitals') }}" class="btn btn-primary">
+                                        <a href="{{ route('health-facilities') }}" class="btn btn-primary">
                                             Add Department
                                         </a>
                                     </div>

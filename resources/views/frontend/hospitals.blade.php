@@ -1,31 +1,26 @@
 @extends('layouts.app')
-@section('title', 'Hospitals List')
+@section('title', 'Health Facilities')
 
 @section('content')
     <div class="app-container">
         <div class="app-body">
             <div class="row gx-3">
-                <!-- Charts -->
-                <div class="col-sm-6">
+                <!-- Filters + Chart -->
+                <div class="col-sm-12">
                     <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Health Facilities</h5>
+                        <div class="card-header d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="card-title mb-0">Patient Attendance per Month</h5>
+                            <select id="facilitySelect" class="form-select form-select-sm w-auto ms-auto"></select>
+                            <select id="periodSelect" class="form-select form-select-sm w-auto">
+                                <option value="this_year">This year</option>
+                                <option value="2y">Last 2 years</option>
+                                <option value="3y">Last 3 years</option>
+                                <option value="since_2020" selected>Since 2020</option>
+                            </select>
                         </div>
                         <div class="card-body">
                             <div class="chart-height-lg">
-                                <div id="total-department" class="auto-align-graph"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-6">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Employees</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-height-lg">
-                                <div id="employees" class="auto-align-graph"></div>
+                                <div id="facilityAttendanceChart" class="auto-align-graph"></div>
                             </div>
                         </div>
                     </div>
@@ -35,8 +30,7 @@
                 <div class="col-sm-12">
                     <div class="card">
                         <div class="card-header d-flex align-items-center justify-content-between">
-                            <h5 class="card-title">Hospital List</h5>
-                            <a href="{{ route('add-hospitals') }}" class="btn btn-primary ms-auto">Add Hospital</a>
+                            <h5 class="card-title">Health Facility List</h5>
                         </div>
                         <div class="card-body">
                             <!-- Search and Page Size -->
@@ -55,7 +49,7 @@
                                     <thead>
                                         <tr>
                                             <th>#</th>
-                                            <th>Hospital Name</th>
+                                            <th>Facility Name</th>
                                             <th>Contact Personnel</th>
                                             <th>Phone Number</th>
                                             <th>Actions</th>
@@ -93,78 +87,58 @@
 
 @push('scripts')
     <script>
-        const defaultHospitals = [
-            { id: 1, name: "Al Rahma Hospital", person: "Deena Cooley", img: "assets/images/user.png", phone: "+255 678 980 123" },
-            { id: 2, name: "Tasakhtaa Global Hospital", person: "Hector Banks", img: "assets/images/user2.png", phone: "+255 678 980 123" },
-            { id: 3, name: "Mnazi Mmoja Hospital", person: "Owen Scott", img: "assets/images/user3.png", phone: "+255 678 980 123" },
-            { id: 4, name: "Dr.Mehta’s Hospital", person: "Alison Estrada", img: "assets/images/user5.png", phone: "+255 678 980 123" },
-            { id: 5, name: "Tawakal Hospital", person: "Mitchel Alvarez", img: "assets/images/user4.png", phone: "+255 678 980 123" }
-        ];
+        let attendanceChart;
 
-        function loadHospitals() {
-            const data = localStorage.getItem('hospitals');
-            return data ? JSON.parse(data) : defaultHospitals;
+        async function fetchFacilities() {
+            const res = await fetch('{{ route('api.facilities.list') }}');
+            const json = await res.json();
+            if (!json.success) return [];
+            return json.data || [];
         }
 
-        function saveHospitals(hospitals) {
-            localStorage.setItem('hospitals', JSON.stringify(hospitals));
+        async function fetchAttendance(facilityId, period) {
+            const url = new URL('{{ route('api.facilities.attendance') }}', window.location.origin);
+            url.searchParams.set('facility_id', facilityId);
+            url.searchParams.set('period', period);
+            const res = await fetch(url);
+            return await res.json();
         }
 
-        let hospitals = loadHospitals();
-        let deleteHospitalId = null;
-
-        function renderHospitals() {
-            const tbody = document.querySelector('#hospitalTable tbody');
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const pageSize = parseInt(document.getElementById('pageSize').value);
-
-            tbody.innerHTML = '';
-
-            let filtered = hospitals.filter(h =>
-                h.name.toLowerCase().includes(searchTerm) ||
-                h.person.toLowerCase().includes(searchTerm)
-            );
-
-            filtered.slice(0, pageSize).forEach((h, index) => {
-                const row = `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${h.name}</td>
-                                <td><img src="${h.img}" class="img-shadow img-2x rounded-5 me-1" alt="User">${h.person}</td>
-                                <td>${h.phone}</td>
-                                <td>
-                                    <div class="d-inline-flex gap-1">
-                                        <button class="btn btn-outline-danger btn-sm rounded-5 deleteBtn" data-id="${h.id}" data-bs-toggle="modal" data-bs-target="#delRowModal">
-                                            <i class="ri-delete-bin-line"></i>
-                                        </button>
-                                        <a href="{{ route('edit-hospitals') }}" class="btn btn-outline-success btn-sm rounded-5"><i class="ri-edit-box-line"></i></a>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                tbody.innerHTML += row;
+        function initChart() {
+            const el = document.querySelector('#facilityAttendanceChart');
+            if (!el) return;
+            attendanceChart = new ApexCharts(el, {
+                chart: { type: 'bar', height: 320, toolbar: { show: false } },
+                series: [{ name: 'Attendance', data: [] }],
+                xaxis: { categories: [] }
             });
-
-            document.querySelectorAll('.deleteBtn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    deleteHospitalId = parseInt(this.getAttribute('data-id'));
-                });
-            });
+            attendanceChart.render();
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            renderHospitals();
+        async function loadPage() {
+            initChart();
+            const facilities = await fetchFacilities();
+            const select = document.getElementById('facilitySelect');
+            select.innerHTML = facilities.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
 
-            document.getElementById('searchInput').addEventListener('input', renderHospitals);
-            document.getElementById('pageSize').addEventListener('change', renderHospitals);
+            select.addEventListener('change', refreshChart);
+            document.getElementById('periodSelect').addEventListener('change', refreshChart);
 
-            document.getElementById('confirmDelete').addEventListener('click', function () {
-                if (deleteHospitalId !== null) {
-                    hospitals = hospitals.filter(h => h.id !== deleteHospitalId);
-                    saveHospitals(hospitals);
-                    location.reload();
-                }
-            });
-        });
+            if (facilities.length) {
+                await refreshChart();
+            }
+        }
+
+        async function refreshChart() {
+            const facilityId = document.getElementById('facilitySelect').value;
+            const period = document.getElementById('periodSelect').value;
+            const json = await fetchAttendance(facilityId, period);
+            if (!json.success) return;
+            const data = json.data;
+            attendanceChart.updateOptions({ xaxis: { categories: data.labels } });
+            attendanceChart.updateSeries(data.series);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadPage);
     </script>
 @endpush

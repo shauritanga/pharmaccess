@@ -50,15 +50,27 @@
     <div class="dropdown ms-2">
       <a id="userSettings" class="dropdown-toggle d-flex align-items-center" href="#!" role="button"
         data-bs-toggle="dropdown" aria-expanded="false">
-        <div class="avatar-box">NM<span class="status busy"></span></div>
+        <div class="avatar-box">{{ auth()->check() ? substr(auth()->user()->name,0,2) : 'GU' }}<span class="status busy"></span></div>
       </a>
       <div class="dropdown-menu dropdown-menu-end shadow-lg">
         <div class="px-3 py-2">
-          <span class="small">Admin</span>
-          <h6 class="m-0">Nicholaus Maheri</h6>
+          @auth
+            <span class="small">{{ ucfirst(auth()->user()->role ?? 'user') }}</span>
+            <h6 class="m-0">{{ auth()->user()->name }}</h6>
+          @else
+            <span class="small">Guest</span>
+            <h6 class="m-0">Not signed in</h6>
+          @endauth
         </div>
         <div class="mx-3 my-2 d-grid">
-          <a href="login.html" class="btn btn-danger">Logout</a>
+          @auth
+            <form method="post" action="{{ route('logout') }}">
+              @csrf
+              <button class="btn btn-danger" type="submit">Logout</button>
+            </form>
+          @else
+            <a href="{{ route('login') }}" class="btn btn-primary">Login</a>
+          @endauth
         </div>
       </div>
     </div>

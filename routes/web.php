@@ -5,48 +5,76 @@ use App\Http\Controllers\FrontController;
 use App\Http\Controllers\DiseaseAnalyticsController;
 
 
-Route::get('/',[FrontController::class,'index'])->name('home');
+// Auth routes
+Route::get('/login', [\App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [\App\Http\Controllers\Auth\LoginController::class, 'login'])->name('login.post');
+Route::post('/logout', [\App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
 
-// Dashboard API
-Route::get('/api/dashboard', [FrontController::class, 'getDashboardData'])->name('api.dashboard');
+// Protected app routes: require login, then land on dashboard
+Route::middleware(['auth'])->group(function () {
+    Route::get('/', [FrontController::class,'index'])->name('home');
 
+    // Dashboard API
+    Route::get('/api/dashboard', [FrontController::class, 'getDashboardData'])->name('api.dashboard');
 
-Route::get('/hospitals', [FrontController::class,'hospitals'])->name('hospitals');
+    // Health Facilities
+    Route::get('/health-facilities', [FrontController::class,'hospitals'])->name('health-facilities');
+    // Backward-compat route name alias for legacy links
+    Route::get('/hospitals', function() {
+        return redirect()->route('health-facilities');
+    })->name('hospitals');
 
-Route::get('/add-hospitals', [FrontController::class,'Addhospitals'])->name('add-hospitals');
+    Route::get('/medication', [FrontController::class,'medication'])->name('medication');
+    Route::get('/top-diseases', [FrontController::class,'showTopDiseases'])->name('top-diseases');
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
+    Route::post('/settings/password', [\App\Http\Controllers\SettingsController::class, 'updatePassword'])->name('settings.password');
+    Route::get('/patients', [FrontController::class, 'patients'])->name('patients');
+    Route::get('/chronic-diseases', [FrontController::class, 'showChronicDiseases'])->name('chronic-diseases');
 
-Route::get('/edit-hospitals', [FrontController::class,'Edithospitals'])->name('edit-hospitals');
+    // Admin - Users management
+    Route::middleware(['admin'])->group(function () {
+        Route::get('/admin/users', [\App\Http\Controllers\Admin\UsersController::class, 'index'])->name('admin.users.index');
+        Route::get('/admin/users/create', [\App\Http\Controllers\Admin\UsersController::class, 'create'])->name('admin.users.create');
+        Route::post('/admin/users', [\App\Http\Controllers\Admin\UsersController::class, 'store'])->name('admin.users.store');
+        Route::get('/admin/users/{user}/edit', [\App\Http\Controllers\Admin\UsersController::class, 'edit'])->name('admin.users.edit');
+        Route::post('/admin/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'update'])->name('admin.users.update');
+        Route::delete('/admin/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'destroy'])->name('admin.users.destroy');
+    });
+});
 
-Route::get('/medication', [FrontController::class,'medication'])->name('medication');
-
-Route::get('/top-diseases', [FrontController::class,'showTopDiseases'])->name('top-diseases');
-
-Route::get('/settings', [FrontController::class, 'settings'])->name('settings');
-
-Route::get('/patients', [FrontController::class, 'patients'])->name('patients');
-
-Route::get('/chronic-diseases', [FrontController::class, 'showChronicDiseases'])->name('chronic-diseases');
-
-// Disease Analytics API Routes
+// Disease Analytics API Routes (public or can be moved under auth if needed)
 Route::prefix('api/diseases')->group(function () {
     Route::get('/analytics-data', [DiseaseAnalyticsController::class, 'getAnalyticsData'])->name('api.diseases.analytics');
     Route::get('/available-diseases', [DiseaseAnalyticsController::class, 'getAvailableDiseases'])->name('api.diseases.available');
     Route::get('/available-years', [DiseaseAnalyticsController::class, 'getAvailableYears'])->name('api.diseases.years');
 });
 
-// Medication Analytics API Routes
+// Medication Analytics API Routes (public)
 Route::prefix('api/medication-analytics')->group(function () {
     Route::get('/', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAnalyticsData'])->name('api.medication.analytics');
     Route::get('/available-medications', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAvailableMedications'])->name('api.medication.available');
     Route::get('/available-years', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAvailableYears'])->name('api.medication.years');
 });
 
+// Facilities API (list + attendance monthly) (public)
+Route::prefix('api/facilities')->group(function () {
+    Route::get('/list', [FrontController::class, 'getFacilities'])->name('api.facilities.list');
+    Route::get('/attendance', [FrontController::class, 'getFacilityAttendance'])->name('api.facilities.attendance');
+});
+
+
+// Shehia analytics API (cases + medications per shehia) (public)
+Route::prefix('api/shehia')->group(function () {
+    Route::get('/stats', [FrontController::class, 'getShehiaStats'])->name('api.shehia.stats');
+});
 // Test route to verify data
 Route::get('/test-data', function () {
     $diseases = \App\Models\Disease::count();
     $districts = \App\Models\District::count();
     $patients = \App\Models\Patient::count();
     $cases = \App\Models\DiseaseCase::count();
+
+
 
     return response()->json([
         'diseases' => $diseases,
@@ -57,7 +85,3 @@ Route::get('/test-data', function () {
         'sample_district' => \App\Models\District::first(),
     ]);
 });
-
-// For redirecting to a disease detail page
-
-

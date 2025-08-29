@@ -39,6 +39,36 @@
                     <li class="list-group-item"><i class="ri-home-2-line"></i> <a href="/">Home</a></li>
                 </ul>
             </div>
+            <hr>
+            <h5>Change Password</h5>
+            @if(session('status'))
+                <div class="alert alert-success">{{ session('status') }}</div>
+            @endif
+            @if($errors->any())
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+            <form method="post" action="{{ route('settings.password') }}" class="mt-2">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label">Current password</label>
+                    <input type="password" name="current_password" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">New password</label>
+                    <input type="password" name="password" class="form-control" required minlength="6">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirm new password</label>
+                    <input type="password" name="password_confirmation" class="form-control" required minlength="6">
+                </div>
+                <button class="btn btn-primary">Update Password</button>
+            </form>
         </div>
     </div>
 @endsection

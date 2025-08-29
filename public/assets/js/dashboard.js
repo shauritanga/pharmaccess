@@ -168,15 +168,17 @@
             }
         }
 
-        // Facility Performance (bubble)
+        // Facility Performance (bar)
         if (!window.facilityPerformanceChart) {
             const el = document.querySelector('#facility');
             if (el) {
                 window.facilityPerformanceChart = new ApexCharts(el, {
-                    chart: { type: 'bubble', height: 300, toolbar: { show: false } },
-                    series: [{ data: [] }],
-                    xaxis: { title: { text: 'Quality' } },
-                    yaxis: { title: { text: 'Outcome' } }
+                    chart: { type: 'bar', height: 300, toolbar: { show: false } },
+                    series: [
+                        { name: 'Quality', data: [] },
+                        { name: 'Outcome', data: [] }
+                    ],
+                    xaxis: { categories: [] }
                 });
                 window.facilityPerformanceChart.render();
             }
@@ -333,17 +335,15 @@
      * Update facility performance chart
      */
     function updateFacilityPerformanceChart(data) {
-        if (window.facilityPerformanceChart && window.facilityPerformanceChart.updateSeries) {
-            const seriesData = data.map(item => ({
-                x: item.quality,
-                y: item.outcome,
-                z: item.cases
-            }));
-
-            window.facilityPerformanceChart.updateSeries([{
-                data: seriesData
-            }]);
-        }
+        if (!window.facilityPerformanceChart) return;
+        const categories = Array.isArray(data) ? data.map(i => i.facility) : (data.categories || []);
+        const quality = Array.isArray(data) ? data.map(i => i.quality) : (data.quality || []);
+        const outcome = Array.isArray(data) ? data.map(i => i.outcome) : (data.outcome || []);
+        window.facilityPerformanceChart.updateOptions({ xaxis: { categories } });
+        window.facilityPerformanceChart.updateSeries([
+            { name: 'Quality', data: quality },
+            { name: 'Outcome', data: outcome }
+        ]);
     }
 
     /**

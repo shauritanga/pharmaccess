@@ -354,22 +354,19 @@ class FrontController extends Controller
      */
     private function getChronicDiseases($dateRange)
     {
-        // Define chronic diseases (you can adjust this list)
-        $chronicDiseaseNames = ['Diabetes', 'Hypertension', 'Asthma', 'Cancer', 'HIV/AIDS', 'Arthritis'];
-
-        $chronicDiseases = \App\Models\DiseaseCase::with('disease')
-            ->whereBetween('reported_date', [$dateRange['start'], $dateRange['end']])
-            ->whereHas('disease', function($query) use ($chronicDiseaseNames) {
-                $query->whereIn('name', $chronicDiseaseNames);
-            })
-            ->selectRaw('disease_id, COUNT(*) as case_count')
-            ->groupBy('disease_id')
+        // Show all diseases classified as 'chronic' in the selected period (no hard-coded name list)
+        $rows = \App\Models\DiseaseCase::query()
+            ->join('diseases', 'diseases.id', '=', 'disease_cases.disease_id')
+            ->whereBetween('disease_cases.reported_date', [$dateRange['start'], $dateRange['end']])
+            ->where('diseases.category', 'chronic')
+            ->selectRaw('diseases.name as name, COUNT(*) as case_count')
+            ->groupBy('diseases.id', 'diseases.name')
             ->orderByDesc('case_count')
             ->get();
 
         return [
-            'labels' => $chronicDiseases->pluck('disease.name')->toArray(),
-            'data' => $chronicDiseases->pluck('case_count')->toArray()
+            'labels' => $rows->pluck('name')->toArray(),
+            'data' => $rows->pluck('case_count')->toArray()
         ];
     }
 
@@ -413,6 +410,172 @@ class FrontController extends Controller
 
     public function Edithospitals() {
         return view('frontend.edit-hospitals');
+    }
+
+    // API: Facilities list
+    public function getFacilities(Request $request)
+    {
+        try {
+            $rows = DB::table('hfacilities')->select('id', 'name')->orderBy('name')->get();
+            return response()->json(['success' => true, 'data' => $rows]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch facilities list'], 200);
+        }
+    }
+
+    // API: Facility attendance per month for a given facility and period
+    public function getFacilityAttendance(Request $request)
+    {
+        $facilityId = (int) $request->input('facility_id');
+        $period = $request->input('period', 'this_year');
+        if (!$facilityId) {
+            return response()->json(['success' => false, 'message' => 'facility_id is required'], 200);
+        }
+        try {
+            $dateRange = $this->calculateDateRange($period);
+
+            // Always show Jan..Dec; aggregate across selected period
+            $labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            // Aggregate visits per month-of-year, with fallback to VisitData if visits table missing/empty
+            $rows = collect();
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('visits')) {
+                    $rows = DB::table('visits')
+                        ->where('hfacility_id', $facilityId)
+                        ->whereBetween(DB::raw('COALESCE(date_from, date_to)'), [$dateRange['start'], $dateRange['end']])
+                        ->selectRaw('MONTH(COALESCE(date_from, date_to)) as m, COUNT(*) as cnt')
+                        ->groupBy('m')
+                        ->get();
+                }
+            } catch (\Throwable $e) {
+                // ignore and try fallback
+            }
+
+            if ($rows->isEmpty()) {
+                $source = null;
+                if (\Illuminate\Support\Facades\Schema::hasTable('VisitData')) $source = 'VisitData';
+                elseif (\Illuminate\Support\Facades\Schema::hasTable('stage_VisitData')) $source = 'stage_VisitData';
+
+                if ($source) {
+                    // Attempt to parse DateFrom into DATE with multiple formats, including epoch and Excel serial date
+                    $dtExpr = "CASE\n                        WHEN DateFrom REGEXP '^[0-9]{10}$' THEN FROM_UNIXTIME(CAST(DateFrom AS UNSIGNED))\n                        WHEN DateFrom REGEXP '^[0-9]{5}$' THEN DATE_ADD('1899-12-30', INTERVAL CAST(DateFrom AS UNSIGNED) DAY)\n                        ELSE COALESCE(\n                            STR_TO_DATE(DateFrom, '%Y-%m-%d'),\n                            STR_TO_DATE(DateFrom, '%d/%m/%Y'),\n                            STR_TO_DATE(DateFrom, '%m/%d/%Y'),\n                            STR_TO_DATE(DateFrom, '%Y%m%d')\n                        )\n                    END";
+                    $rows = DB::table($source)
+                        ->where('HFID', $facilityId)
+                        ->whereBetween(DB::raw($dtExpr), [$dateRange['start']->format('Y-m-d'), $dateRange['end']->format('Y-m-d')])
+                        ->selectRaw("MONTH($dtExpr) as m, COUNT(*) as cnt")
+                        ->groupBy('m')
+                        ->get();
+                }
+            }
+
+            // Map results to Jan..Dec order
+            $seriesData = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $match = $rows->firstWhere(fn($r) => (int)$r->m === $m);
+                $seriesData[] = $match ? (int)$match->cnt : 0;
+            }
+
+            // Facility name
+            $facility = DB::table('hfacilities')->where('id', $facilityId)->select('id','name')->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'labels' => $labels,
+                    'series' => [[ 'name' => 'Attendance', 'data' => $seriesData ]],
+                    'facility' => $facility,
+                    'period' => $period
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch attendance'], 200);
+        }
+    }
+
+    // API: Shehia stats (disease cases + medication prescribed)
+    public function getShehiaStats(Request $request)
+    {
+        $period = $request->input('period', 'this_year');
+        $dateRange = $this->calculateDateRange($period);
+
+        // Cache key per period to avoid recomputation
+        $cacheKey = 'shehia_stats:'.$period;
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
+        }
+
+        $labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        // Prefer normalized path only; skip heavy VisitData fallback unless needed
+        $casesByShehia = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('visit_diagnoses') && \Illuminate\Support\Facades\Schema::hasTable('visits')) {
+                $casesByShehia = DB::table('visit_diagnoses as vd')
+                    ->join('visits as v', 'v.id', '=', 'vd.visit_id')
+                    ->leftJoin('hfacilities as hf', 'hf.id', '=', 'v.hfacility_id')
+                    ->leftJoin('shehia as sh', 'sh.id', '=', 'hf.shehia_id')
+                    ->whereBetween('v.date_from', [$dateRange['start'], $dateRange['end']])
+                    ->selectRaw('COALESCE(sh.name, "Unknown") as shehia, COUNT(*) as disease_cases')
+                    ->groupBy('shehia')
+                    ->get();
+            }
+        } catch (\Throwable $e) { /* ignore */ }
+
+        if ($casesByShehia->isEmpty()) {
+            // Fallback only if normalized tables not available
+            $source = null;
+            if (\Illuminate\Support\Facades\Schema::hasTable('VisitData')) $source = 'VisitData';
+            elseif (\Illuminate\Support\Facades\Schema::hasTable('stage_VisitData')) $source = 'stage_VisitData';
+
+            if ($source) {
+                $dtExpr = "CASE\n                        WHEN DateFrom REGEXP '^[0-9]{10}$' THEN FROM_UNIXTIME(CAST(DateFrom AS UNSIGNED))\n                        WHEN DateFrom REGEXP '^[0-9]{5}$' THEN DATE_ADD('1899-12-30', INTERVAL CAST(DateFrom AS UNSIGNED) DAY)\n                        ELSE COALESCE(\n                            STR_TO_DATE(DateFrom, '%Y-%m-%d'),\n                            STR_TO_DATE(DateFrom, '%d/%m/%Y'),\n                            STR_TO_DATE(DateFrom, '%m/%d/%Y'),\n                            STR_TO_DATE(DateFrom, '%Y%m%d')\n                        )\n                    END";
+                $casesByShehia = DB::table($source)
+                    ->whereBetween(DB::raw($dtExpr), [$dateRange['start']->format('Y-m-d'), $dateRange['end']->format('Y-m-d')])
+                    ->whereNotNull('Shehia')
+                    ->selectRaw('TRIM(Shehia) as shehia, COUNT(*) as disease_cases')
+                    ->groupBy('shehia')
+                    ->get();
+            }
+        }
+
+        // Medications prescribed by shehia via patients->prescriptions
+        $medByShehia = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('prescriptions') && \Illuminate\Support\Facades\Schema::hasTable('patients')) {
+                $medByShehia = DB::table('prescriptions as pr')
+                    ->join('patients as p', 'p.id', '=', 'pr.patient_id')
+                    ->leftJoin('shehia as sh', 'sh.id', '=', 'p.shehia_id')
+                    ->whereBetween('pr.prescribed_date', [$dateRange['start'], $dateRange['end']])
+                    ->selectRaw('COALESCE(sh.name, "Unknown") as shehia, COUNT(*) as meds_prescribed')
+                    ->groupBy('shehia')
+                    ->get();
+            }
+        } catch (\Throwable $e) { /* ignore */ }
+
+        $shehiaNames = collect($casesByShehia)->pluck('shehia')->merge(collect($medByShehia)->pluck('shehia'))->unique()->values();
+        $stats = [];
+        foreach ($shehiaNames as $shName) {
+            $cases = optional($casesByShehia->firstWhere('shehia', $shName))->disease_cases ?? 0;
+            $meds  = optional($medByShehia->firstWhere('shehia', $shName))->meds_prescribed ?? 0;
+            $stats[] = [
+                'shehia' => $shName,
+                'disease_cases' => (int)$cases,
+                'meds_prescribed' => (int)$meds,
+            ];
+        }
+
+        $payload = [
+            'success' => true,
+            'data' => [
+                'labels' => $labels,
+                'stats' => $stats,
+            ]
+        ];
+
+        // Cache for 30 minutes
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $payload, now()->addMinutes(30));
+        return response()->json($payload);
     }
 
     public function medication(Request $request)

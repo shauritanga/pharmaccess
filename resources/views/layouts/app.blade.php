@@ -36,20 +36,25 @@
   </div>
 
   <!-- Page wrapper -->
-  <div class="page-wrapper">
+  @if(auth()->check())
+  <div class="page-wrapper d-flex flex-column" style="min-height:100vh;">
     @include('partials.header')
 
-    <div class="main-container">
+    <div class="main-container flex-grow-1 d-flex">
       @include('partials.sidebar')
-      <main>
+      <main class="flex-grow-1">
         @yield('content')
         @yield('scripts')
       </main>
-      @include('partials.footer')
     </div>
-
-
+    @include('partials.footer')
   </div>
+  @else
+    <main>
+      @yield('content')
+      @yield('scripts')
+    </main>
+  @endif
 
 
   <!-- ************ JavaScript Files ************ -->

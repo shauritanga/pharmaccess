@@ -155,15 +155,16 @@
 
 
 
-            <!-- Medication Usage Geo Heatmap (Shehia) -->
+            <!-- Shehia Heatmap (GeoJSON) below summary cards -->
             <div class="row gx-3">
                 <div class="col-12">
                     <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Medication Usage by Shehia</h5>
+                        <div class="card-header d-flex align-items-center">
+                            <h5 class="card-title mb-0">Shehia Heatmap</h5>
+                            <small class="text-muted ms-2">Hover a shehia to see disease cases and medications prescribed</small>
                         </div>
                         <div class="card-body">
-                            <div id="medicationGeo"></div>
+                            <div id="shehiaMap"></div>
                         </div>
                     </div>
                 </div>
@@ -236,20 +237,7 @@
             </div>
             <!-- Charts Row ends -->
 
-            <!-- Heatmap Row starts -->
-            <div class="row gx-3">
-                <div class="col-12">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Disease Distribution Heatmap - Zanzibar Districts</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="diseaseHeatmap"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- Heatmap Row ends -->
+
 
         </div>
         <!-- App body ends -->
