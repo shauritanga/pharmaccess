@@ -3,6 +3,18 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FrontController;
 use App\Http\Controllers\DiseaseAnalyticsController;
+// Serve GeoJSON via Laravel (handles shared hosting docroots)
+Route::get('/data/zanibar_kata2.geojson', function () {
+    $path = public_path('data/zanibar_kata2.geojson');
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    return response(file_get_contents($path), 200, [
+        'Content-Type' => 'application/geo+json',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->name('geojson.shehia');
+
 
 
 // Auth routes

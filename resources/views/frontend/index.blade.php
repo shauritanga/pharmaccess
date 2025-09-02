@@ -4,7 +4,7 @@
 
 @section('content')
     <!-- App container starts -->
-    <div class="app-container">
+    <div class="app-container px-3">
 
         <!-- App hero header starts -->
         <div class="app-hero-header d-flex align-items-center">
@@ -39,10 +39,28 @@
         <div class="app-body">
 
 
+            <style>
+                /* Five cards per row on lg+ screens */
+                @media (min-width: 992px) {
+                    .col-5th { flex: 0 0 20%; max-width: 20%; }
+                }
+                /* Tighten gaps below cards */
+                .summary-row + .heatmap-row {
+                    margin-top: 36px !important;
+                }
+            </style>
+
+            <style>
+                /* Five cards per row on lg+ screens */
+                @media (min-width: 992px) {
+                    .col-5th { flex: 0 0 20%; max-width: 20%; }
+                }
+            </style>
+
 
             <!-- Row starts -->
-            <div class="row gx-3">
-                <div class="col-xl-3 col-sm-6 col-12">
+            <div class="row gx-3 summary-row">
+                <div class="col-xl-3 col-sm-6 col-12 col-5th">
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
@@ -56,20 +74,11 @@
                                     <p class="m-0" id="label-total-patients">Total Patients</p>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-end justify-content-between mt-1">
-                                <a class="text-success" href="{{ route('patients') }}">
-                                    <span>View All</span>
-                                    <i class="ri-arrow-right-line text-success ms-1"></i>
-                                </a>
-                                <div class="text-end">
-                                    <p class="mb-0 text-success">+40%</p>
-                                    <span class="badge bg-success-subtle text-success small">this month</span>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-sm-6 col-12">
+                <div class="col-xl-3 col-sm-6 col-12 col-5th">
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
@@ -83,20 +92,11 @@
                                     <p class="m-0" id="label-health-facilities">Health Facilities</p>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-end justify-content-between mt-1">
-                                <a class="text-primary" href="{{ route('hospitals') }}">
-                                    <span>View All</span>
-                                    <i class="ri-arrow-right-line ms-1"></i>
-                                </a>
-                                <div class="text-end">
-                                    <p class="mb-0 text-primary">+30%</p>
-                                    <span class="badge bg-primary-subtle text-primary small">for the last 2 yaers</span>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-sm-6 col-12">
+                <div class="col-xl-3 col-sm-6 col-12 col-5th">
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
@@ -107,61 +107,69 @@
                                 </div>
                                 <div class="d-flex flex-column">
                                     <h2 class="lh-1" id="metric-prescriptions">--</h2>
-                                    <p class="m-0" id="label-prescriptions">Prescriptions</p>
+                                    <p class="m-0" id="label-prescriptions">Under-5 (Malaria/Pneumonia/Diarrhea)</p>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-end justify-content-between mt-1">
-                                <a class="text-danger" href="{{ route('medication') }}">
-                                    <span>View All</span>
-                                    <i class="ri-arrow-right-line ms-1"></i>
-                                </a>
-                                <div class="text-end">
-                                    <p class="mb-0 text-danger">+60%</p>
-                                    <span class="badge bg-danger-subtle text-danger small">this month</span>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-sm-6 col-12">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="p-2 border border-warning rounded-circle me-3">
-                                    <div class="icon-box md bg-warning-subtle rounded-5">
-                                        <i class="ri-stethoscope-line fs-4 text-warning"></i>
+
+
+                <!-- Extra summary cards: Pregnancy Cases and Chronic Diseases Cases -->
+
+                    <div class="col-xl-3 col-sm-6 col-12 col-5th">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="p-2 border border-pink rounded-circle me-3">
+                                        <div class="icon-box md bg-pink-subtle rounded-5">
+                                            <i class="ri-heart-pulse-line fs-4 text-danger"></i>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex flex-column">
+                                        <h2 class="lh-1" id="metric-pregnancy-cases">--</h2>
+                                        <p class="m-0" id="label-pregnancy-cases">Pregnancy Cases</p>
                                     </div>
                                 </div>
-                                <div class="d-flex flex-column">
-                                    <h2 class="lh-1" id="metric-disease-cases">--</h2>
-                                    <p class="m-0" id="label-disease-cases">Disease Cases</p>
-                                </div>
                             </div>
-                            <div class="d-flex align-items-end justify-content-between mt-1">
-                                <a class="text-warning" href="javascript:void(0);">
-                                    <span>View All</span>
-                                    <i class="ri-arrow-right-line ms-1"></i>
-                                </a>
-                                <div class="text-end">
-                                    <p class="mb-0 text-warning">+20%</p>
-                                    <span class="badge bg-warning-subtle text-warning small">this month</span>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-sm-6 col-12 col-5th">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="p-2 border border-secondary rounded-circle me-3">
+                                        <div class="icon-box md bg-secondary-subtle rounded-5">
+                                            <i class="ri-pulse-line fs-4 text-secondary"></i>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex flex-column">
+                                        <h2 class="lh-1" id="metric-chronic-cases">--</h2>
+                                        <p class="m-0" id="label-chronic-cases">Chronic Diseases Cases</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
             <!-- Row ends -->
 
 
 
             <!-- Shehia Heatmap (GeoJSON) below summary cards -->
-            <div class="row gx-3">
+            <!-- <style>
+                /* Reduce vertical spacing between summary cards and heatmap */
+                .app-body > .row.gx-3 + .row.gx-3 { margin-top: 0.5rem !important; }
+                .card.mb-3 { margin-bottom: 0.75rem !important; }
+            </style> -->
+
+            <div class="row gx-3 heatmap-row">
                 <div class="col-12">
                     <div class="card mb-3">
                         <div class="card-header d-flex align-items-center">
                             <h5 class="card-title mb-0">Shehia Heatmap</h5>
-                            <small class="text-muted ms-2">Hover a shehia to see disease cases and medications prescribed</small>
+                           
                         </div>
                         <div class="card-body">
                             <div id="shehiaMap"></div>

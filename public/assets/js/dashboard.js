@@ -6,7 +6,7 @@
 (function() {
     'use strict';
 
-    let currentPeriod = 'this_year';
+    let currentPeriod = 'since_2020';
     let dashboardData = null;
 
     // Initialize dashboard when DOM is loaded
@@ -29,21 +29,21 @@
      */
     function setupEventListeners() {
         const periodButtons = document.querySelectorAll('.day-sorting button');
-        
+
         periodButtons.forEach(button => {
             button.addEventListener('click', function() {
                 // Remove active class from all buttons
                 periodButtons.forEach(btn => btn.classList.remove('btn-primary'));
                 periodButtons.forEach(btn => btn.classList.add('btn-sm'));
-                
+
                 // Add active class to clicked button
                 this.classList.add('btn-primary');
                 this.classList.remove('btn-sm');
-                
+
                 // Get period from button text
                 const period = getPeriodFromButtonText(this.textContent.trim());
                 currentPeriod = period;
-                
+
                 // Load new data
                 loadDashboardData(period);
             });
@@ -61,7 +61,7 @@
             'Since 2020': 'since_2020'
         };
 
-        return periodMap[text] || 'this_year';
+        return periodMap[text] || 'since_2020';
     }
 
     /**
@@ -69,10 +69,10 @@
      */
     function loadDashboardData(period) {
         console.log(`Loading dashboard data for period: ${period}`);
-        
+
         // Show loading state
         showLoadingState();
-        
+
         fetch(`/api/dashboard?period=${period}`)
             .then(response => response.json())
             .then(data => {
@@ -109,8 +109,9 @@
         // Update metric values by ID to avoid brittle selectors
         setMetric('#metric-total-patients', metrics.total_patients);
         setMetric('#metric-health-facilities', metrics.health_facilities);
-        setMetric('#metric-prescriptions', metrics.prescriptions, '#label-prescriptions', 'Prescriptions');
-        setMetric('#metric-disease-cases', metrics.disease_cases, '#label-disease-cases', 'Disease Cases');
+        setMetric('#metric-prescriptions', metrics.prescriptions, '#label-prescriptions', 'Under-5 (Malaria/Pneumonia/Diarrhea)');
+        setMetric('#metric-pregnancy-cases', metrics.pregnancy_cases, '#label-pregnancy-cases', 'Pregnancy Cases');
+        setMetric('#metric-chronic-cases', metrics.chronic_cases, '#label-chronic-cases', 'Chronic Diseases Cases');
     }
 
     /**
@@ -168,15 +169,15 @@
             }
         }
 
-        // Facility Performance (bar)
+        // Facility Attendance by Facility (bar)
         if (!window.facilityPerformanceChart) {
             const el = document.querySelector('#facility');
             if (el) {
                 window.facilityPerformanceChart = new ApexCharts(el, {
                     chart: { type: 'bar', height: 300, toolbar: { show: false } },
                     series: [
-                        { name: 'Quality', data: [] },
-                        { name: 'Outcome', data: [] }
+                        { name: 'Attendance (Patients)', data: [] },
+                        { name: 'Visits', data: [] }
                     ],
                     xaxis: { categories: [] }
                 });
@@ -197,14 +198,18 @@
             }
         }
 
-        // Gender & Age line chart placeholder (optional)
+        // High-Risk Pregnancy Trends (line)
         if (!window.genderAgeChart) {
             const el = document.querySelector('#genderAge');
             if (el) {
                 window.genderAgeChart = new ApexCharts(el, {
                     chart: { type: 'line', height: 300, toolbar: { show: false } },
-                    series: [],
-                    xaxis: { categories: [] }
+                    stroke: { curve: 'smooth', width: 3 },
+                    markers: { size: 4 },
+                    colors: ['#116AEF'],
+                    series: [{ name: 'Pregnancy Patients', data: [] }],
+                    xaxis: { categories: [] },
+                    noData: { text: 'No data' }
                 });
                 window.genderAgeChart.render();
             }
@@ -223,6 +228,18 @@
             }
         }
     }
+
+        /**
+         * Update pregnancy trends chart
+         */
+        function updatePregnancyTrendsChart(data) {
+            if (!window.genderAgeChart) return;
+            const labels = data.labels || [];
+            const series = data.series || [];
+            window.genderAgeChart.updateOptions({ xaxis: { categories: labels } });
+            window.genderAgeChart.updateSeries(series);
+        }
+
 
     /**
      * Get color class based on trend
@@ -283,6 +300,11 @@
         if (charts.age_distribution && window.ageDistributionChart) {
             updateAgeDistributionChart(charts.age_distribution);
         }
+
+        // Update pregnancy trends
+        if (charts.pregnancy_trends && window.genderAgeChart) {
+            updatePregnancyTrendsChart(charts.pregnancy_trends);
+        }
     }
 
     /**
@@ -332,17 +354,17 @@
     }
 
     /**
-     * Update facility performance chart
+     * Update facility attendance chart
      */
     function updateFacilityPerformanceChart(data) {
         if (!window.facilityPerformanceChart) return;
         const categories = Array.isArray(data) ? data.map(i => i.facility) : (data.categories || []);
-        const quality = Array.isArray(data) ? data.map(i => i.quality) : (data.quality || []);
-        const outcome = Array.isArray(data) ? data.map(i => i.outcome) : (data.outcome || []);
+        const attendance = Array.isArray(data) ? data.map(i => i.attendance) : (data.attendance || []);
+        const visits = Array.isArray(data) ? data.map(i => i.visits) : (data.visits || []);
         window.facilityPerformanceChart.updateOptions({ xaxis: { categories } });
         window.facilityPerformanceChart.updateSeries([
-            { name: 'Quality', data: quality },
-            { name: 'Outcome', data: outcome }
+            { name: 'Attendance (Patients)', data: attendance },
+            { name: 'Visits', data: visits }
         ]);
     }
 
@@ -361,6 +383,9 @@
                         categories: data.districts
                     }
                 });
+
+
+
             }
         }
     }
@@ -369,6 +394,9 @@
      * Update age distribution chart
      */
     function updateAgeDistributionChart(data) {
+
+
+
         if (!window.ageDistributionChart) return;
         const labels = data.labels || [];
         const series = [{ name: 'Patients', data: data.series || [] }];

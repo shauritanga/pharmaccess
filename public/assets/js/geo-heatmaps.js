@@ -110,7 +110,7 @@
 
     const mapDivId = isShehia ? 'map-shehia' : 'map-med-geo';
     if (!document.getElementById(mapDivId)) {
-      container.innerHTML = `<div id="${mapDivId}" style="height:90vh;width:100%"></div>`;
+      container.innerHTML = `<div id="${mapDivId}" style=\"height:80vh;width:100%\"></div>`;
       if (isShehia) diseaseMap = L.map(mapDivId);
       else medicationMap = L.map(mapDivId);
       ensureBasemap(isShehia ? diseaseMap : medicationMap);
@@ -167,11 +167,6 @@
           style: f => {
             const raw = (f.properties?.ward_name || f.properties?.dist_name || f.properties?.counc_name || f.properties?.name);
             const v = mapCases[normalizeName(raw)] || 0;
-    }).catch(err => {
-      clearTimeout(to);
-      console.error('Heatmap fetch failed', err);
-      setStatus(containerId, 'Failed to load map data. Please try again.');
-    });
             return { color:'#222', weight:2, opacity:1, fillOpacity:0.55, fillColor:getColor(v, maxVal) };
           },
           onEachFeature: (feature, l) => {
