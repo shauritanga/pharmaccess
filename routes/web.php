@@ -14,6 +14,17 @@ Route::get('/data/zanibar_kata2.geojson', function () {
         'Cache-Control' => 'public, max-age=86400',
     ]);
 })->name('geojson.shehia');
+// Alternate GeoJSON route to bypass static server restrictions in production
+Route::get('/geo/shehia', function () {
+    $path = public_path('data/zanibar_kata2.geojson');
+    if (!file_exists($path)) {
+        abort(404);
+    }
+    return response(file_get_contents($path), 200, [
+        'Content-Type' => 'application/geo+json',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->name('geojson.shehia.alt');
 
 
 

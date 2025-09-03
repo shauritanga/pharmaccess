@@ -1,9 +1,11 @@
 (function(){
   'use strict';
 
-  // Unified GeoJSON map logic for both Disease and Medication maps
+  // Unified GeoJSON map logic for both Disease (Shehia) and Medication maps
   let diseaseMap, diseaseLayer, diseaseLegend;
   let medicationMap, medicationLayer, medicationLegend;
+  // Track active fetch controllers per map to abort previous requests cleanly
+  let shehiaCtrl = null, medicationCtrl = null;
   // Note: We no longer use L.Proj.geoJson path to avoid inconsistencies
   const hasProjLeaflet = !!(window.L && L.Proj && L.Proj.geoJson);
 
@@ -127,12 +129,21 @@
 
     const oldLegend = isShehia ? diseaseLegend : medicationLegend;
 
-    // Fetch shehia stats (cases + meds) + GeoJSON (geometry) with timeout
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 15000);
+    // Fetch shehia stats (cases + meds + totals) + GeoJSON with timeout; abort any prior in-flight request
+    let ctrl;
+    if (isShehia) {
+      if (shehiaCtrl) { try { shehiaCtrl.abort(); } catch(_){} }
+      shehiaCtrl = new AbortController();
+      ctrl = shehiaCtrl;
+    } else {
+      if (medicationCtrl) { try { medicationCtrl.abort(); } catch(_){} }
+      medicationCtrl = new AbortController();
+      ctrl = medicationCtrl;
+    }
+    const to = setTimeout(() => ctrl.abort(), 20000);
     Promise.all([
       fetch(`/api/shehia/stats?period=${period}`, { signal: ctrl.signal }).then(r=>r.ok?r.json():{success:false}).catch(()=>({success:false})),
-      fetch('/data/zanibar_kata2.geojson', { cache:'no-store', signal: ctrl.signal }).then(r=>r.ok?r.json():Promise.reject(new Error('GeoJSON 404')))
+      fetch('/geo/shehia', { cache:'no-store', signal: ctrl.signal }).then(r=>r.ok?r.json():Promise.reject(new Error('GeoJSON 404')))
     ]).then(([api, geojson]) => {
       clearTimeout(to);
       // Defensive: ensure we have a valid FeatureCollection before proceeding
@@ -144,13 +155,16 @@
       clearStatus(containerId);
 
       // Build lookup maps by shehia
-      const mapCases = {}; const mapMeds = {};
+      const mapCases = {}; const mapMeds = {}; const mapPatients = {}; const mapChronic = {}; const mapPreg = {};
       let maxVal = 0;
       if (api && api.success && api.data && Array.isArray(api.data.stats)) {
         api.data.stats.forEach(row => {
           const key = normalizeName(row.shehia);
           mapCases[key] = row.disease_cases || 0;
           mapMeds[key] = row.meds_prescribed || 0;
+          mapPatients[key] = row.total_patients || 0;
+          mapChronic[key] = row.chronic_cases || 0;
+          mapPreg[key] = row.pregnancy_cases || 0;
           maxVal = Math.max(maxVal, row.disease_cases || 0); // color scale by cases
         });
       }
@@ -172,9 +186,13 @@
           onEachFeature: (feature, l) => {
             const raw = (feature.properties?.ward_name || feature.properties?.dist_name || feature.properties?.counc_name || feature.properties?.name);
             const key = normalizeName(raw);
-            const cases = mapCases[key] || 0;
-            const meds = mapMeds[key] || 0;
-            const html = `<div><b>${raw}</b><br/>Disease cases: ${cases}<br/>Meds prescribed: ${meds}</div>`;
+            const patients = mapPatients[key] || 0;
+            const chronic = mapChronic[key] || 0;
+            const preg = mapPreg[key] || 0;
+            const html = `<div><b>${raw}</b>
+              <br/>Total patients: ${patients}
+              <br/>Chronic (Diabetes/Hypertension): ${chronic}
+              <br/>Pregnancy cases: ${preg}</div>`;
             l.bindTooltip(html, {sticky:true});
           }
         });
@@ -199,9 +217,13 @@
       const legend = maxVal > 0 ? addLegend(mapRef, maxVal, legendTitle) : null;
 
       // Store refs
-      if (isDisease) { diseaseLayer = layer; diseaseLegend = legend; }
+      if (isShehia) { diseaseLayer = layer; diseaseLegend = legend; }
       else { medicationLayer = layer; medicationLegend = legend; }
-    }).catch(err => console.error('Geo heatmap error', err));
+    }).catch(err => {
+      // Swallow expected aborts silently
+      if (err && (err.name === 'AbortError' || (err.message && err.message.toLowerCase().includes('abort')))) return;
+      console.error('Geo heatmap error', err);
+    });
   }
 
   // Wire up to dashboard period changes

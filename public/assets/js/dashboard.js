@@ -21,6 +21,7 @@
      */
     function initializeDashboard() {
         console.log('Initializing dynamic dashboard...');
+        syncActivePeriodButton();
         loadDashboardData(currentPeriod);
     }
 
@@ -32,18 +33,10 @@
 
         periodButtons.forEach(button => {
             button.addEventListener('click', function() {
-                // Remove active class from all buttons
-                periodButtons.forEach(btn => btn.classList.remove('btn-primary'));
-                periodButtons.forEach(btn => btn.classList.add('btn-sm'));
-
-                // Add active class to clicked button
-                this.classList.add('btn-primary');
-                this.classList.remove('btn-sm');
-
-                // Get period from button text
+                // Set period from button text and sync active styles
                 const period = getPeriodFromButtonText(this.textContent.trim());
                 currentPeriod = period;
-
+                syncActivePeriodButton();
                 // Load new data
                 loadDashboardData(period);
             });
@@ -62,6 +55,21 @@
         };
 
         return periodMap[text] || 'since_2020';
+    }
+
+    // Ensure UI selection matches currentPeriod
+    function syncActivePeriodButton() {
+        const periodButtons = document.querySelectorAll('.day-sorting button');
+        periodButtons.forEach(btn => {
+            const btnPeriod = getPeriodFromButtonText(btn.textContent.trim());
+            if (btnPeriod === currentPeriod) {
+                btn.classList.add('btn-primary');
+                btn.classList.remove('btn-sm');
+            } else {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-sm');
+            }
+        });
     }
 
     /**
@@ -169,17 +177,25 @@
             }
         }
 
-        // Facility Attendance by Facility (bar)
+        // Facility Quality vs Disease Outcome (scatter)
         if (!window.facilityPerformanceChart) {
             const el = document.querySelector('#facility');
             if (el) {
                 window.facilityPerformanceChart = new ApexCharts(el, {
-                    chart: { type: 'bar', height: 300, toolbar: { show: false } },
-                    series: [
-                        { name: 'Attendance (Patients)', data: [] },
-                        { name: 'Visits', data: [] }
-                    ],
-                    xaxis: { categories: [] }
+                    chart: { type: 'scatter', height: 300, toolbar: { show: false } },
+                    series: [],
+                    xaxis: {
+                        title: { text: 'Facility Quality (1=Low, 5=High)' },
+                        min: 1,
+                        max: 5,
+                        tickAmount: 4
+                    },
+                    yaxis: {
+                        title: { text: 'Favorable Outcome (%)' },
+                        min: 0,
+                        max: 100
+                    },
+                    markers: { size: 6 }
                 });
                 window.facilityPerformanceChart.render();
             }
@@ -358,14 +374,20 @@
      */
     function updateFacilityPerformanceChart(data) {
         if (!window.facilityPerformanceChart) return;
-        const categories = Array.isArray(data) ? data.map(i => i.facility) : (data.categories || []);
-        const attendance = Array.isArray(data) ? data.map(i => i.attendance) : (data.attendance || []);
-        const visits = Array.isArray(data) ? data.map(i => i.visits) : (data.visits || []);
-        window.facilityPerformanceChart.updateOptions({ xaxis: { categories } });
-        window.facilityPerformanceChart.updateSeries([
-            { name: 'Attendance (Patients)', data: attendance },
-            { name: 'Visits', data: visits }
-        ]);
+        // Accept only scatter-shaped series: [{ name, data: [[x,y], ...] }, ...]
+        const xTitle = data?.xaxis_title || 'Facility Quality (1=Low, 5=High)';
+        const yTitle = data?.yaxis_title || 'Favorable Outcome (%)';
+        const series = data?.series || [];
+        const valid = Array.isArray(series) && series.every(s => Array.isArray(s?.data) && s.data.every(pt => Array.isArray(pt) && pt.length >= 2 && isFinite(pt[0]) && isFinite(pt[1])));
+        if (!valid) {
+            console.warn('Skipping facility scatter update due to invalid series shape', data);
+            return;
+        }
+        window.facilityPerformanceChart.updateOptions({
+            xaxis: { title: { text: xTitle }, min: 1, max: 5, tickAmount: 4 },
+            yaxis: { title: { text: yTitle }, min: 0, max: 100 }
+        });
+        window.facilityPerformanceChart.updateSeries(series);
     }
 
     /**

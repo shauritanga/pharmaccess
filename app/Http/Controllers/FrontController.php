@@ -461,8 +461,11 @@ class FrontController extends Controller
      */
     private function getFacilityPerformance($dateRange)
     {
-        // Attendance of patients per health facility (visit_data only)
-        // Attendance = distinct patients (matibabu_id, ignoring blanks) within the selected period
+        // Compute a proxy for Facility Quality vs Disease Outcome and return scatter series
+        // Quality proxy: average visits per patient at the facility during the selected period
+        // Outcome proxy (favorable): 100 - under-5 priority disease share (%)
+        // Under-5 priority diseases: Malaria, Pneumonia, Diarrhea via ICD-10 patterns
+
         $rows = DB::table('visit_data as v')
             ->whereBetween('v.date_from', [$dateRange['start'], $dateRange['end']])
             ->whereNotNull('v.hf_id')
@@ -471,6 +474,49 @@ class FrontController extends Controller
             ->orderByDesc('attendance')
             ->limit(10)
             ->get();
+
+        $hfIds = $rows->pluck('hf_id')->filter()->unique()->values()->all();
+
+        // Under-5 priority diseases per facility (Malaria/Pneumonia/Diarrhea)
+        $under5ByHf = collect();
+        if (!empty($hfIds)) {
+            $under5ByHf = DB::table('visit_data as v')
+                ->join('icd_codes as ic', 'ic.icd_id', '=', 'v.icd_id')
+                ->whereIn('v.hf_id', $hfIds)
+                ->whereBetween('v.date_from', [$dateRange['start'], $dateRange['end']])
+                ->whereNotNull('v.dob')
+                ->whereRaw('TIMESTAMPDIFF(YEAR, v.dob, v.date_from) < 5')
+                // ICD-10 patterns: Malaria B50-B54, Pneumonia J12-J18, Diarrhea A09, K52, R19.7
+                ->whereRaw("ic.icd_code REGEXP '^(B5[0-4]|J1[2-8]|A09|K52|R19\\.7)'")
+                ->selectRaw('v.hf_id, COUNT(*) as c')
+                ->groupBy('v.hf_id')
+                ->get()
+                ->pluck('c', 'hf_id');
+        }
+
+        $series = [];
+        foreach ($rows as $r) {
+            $visits = (int)$r->visits;
+            $attendance = max(1, (int)$r->attendance);
+            $avgVisitsPerPatient = $visits / $attendance; // quality proxy
+            // Scale quality to 1..5 range for readability
+            $quality = max(1, min(5, round($avgVisitsPerPatient * 1.5, 1))); // tune factor if needed
+
+            $u5 = (int)($under5ByHf[$r->hf_id] ?? 0);
+            $u5Share = $visits > 0 ? ($u5 / $visits) : 0;
+            $outcome = round(100 - ($u5Share * 100), 1); // higher is better
+
+            $series[] = [
+                'name' => (string)$r->facility,
+                'data' => [[ $quality, $outcome ]]
+            ];
+        }
+
+        return [
+            'series' => $series,
+            'xaxis_title' => 'Facility Quality (avg visits per patient)',
+            'yaxis_title' => 'Favorable Outcome (%)'
+        ];
 
         // Return as array of { facility, attendance, visits }
         return $rows->map(function($r){
@@ -627,15 +673,67 @@ class FrontController extends Controller
             }
         } catch (\Throwable $e) { /* ignore */ }
 
-        $shehiaNames = collect($casesByShehia)->pluck('shehia')->merge(collect($medByShehia)->pluck('shehia'))->unique()->values();
+        // Total patients per shehia (distinct matibabu_id) from visit_data
+        $patientsByShehia = DB::table('visit_data')
+            ->whereBetween('date_from', [$dateRange['start'], $dateRange['end']])
+            ->whereNotNull('shehia')
+            ->selectRaw("TRIM(shehia) as shehia, COUNT(DISTINCT NULLIF(TRIM(matibabu_id), '')) as total_patients")
+            ->groupBy('shehia')
+            ->get()
+            ->mapWithKeys(fn($r) => [$r->shehia => (int)$r->total_patients]);
+
+        // Chronic (Diabetes/Hypertension) cases per shehia from visit_data + icd_codes
+        $chronicIcdIds = DB::table('icd_codes')
+            ->where(function($q){ $q->whereRaw('LOWER(icd_name) LIKE ?', ['%diabet%'])->orWhereRaw('LOWER(icd_name) LIKE ?', ['%hyperten%']); })
+            ->pluck('icd_id')->toArray();
+        $chronicByShehia = collect();
+        if (!empty($chronicIcdIds)) {
+            $chronicByShehia = DB::table('visit_data as v')
+                ->whereBetween('v.date_from', [$dateRange['start'], $dateRange['end']])
+                ->whereNotNull('v.shehia')
+                ->whereIn('v.icd_id', $chronicIcdIds)
+                ->selectRaw("TRIM(v.shehia) as shehia, COUNT(*) as chronic_cases")
+                ->groupBy('shehia')
+                ->get();
+        }
+
+        // Pregnancy cases per shehia via risk_profile -> visit_data
+        $pregByShehia = collect();
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('risk_profile')) {
+                $pregByShehia = DB::table('risk_profile as rp')
+                    ->join('visit_data as v', 'v.claim_id', '=', 'rp.claim_id')
+                    ->whereBetween('v.date_from', [$dateRange['start'], $dateRange['end']])
+                    ->whereNotNull('v.shehia')
+                    ->selectRaw("TRIM(v.shehia) as shehia, COUNT(*) as pregnancy_cases")
+                    ->groupBy('shehia')
+                    ->get();
+            }
+        } catch (\Throwable $e) { /* ignore */ }
+
+        // Merge all shehia names
+        $shehiaNames = collect($casesByShehia)->pluck('shehia')
+            ->merge(collect($medByShehia)->pluck('shehia'))
+            ->merge($patientsByShehia->keys())
+            ->merge(collect($chronicByShehia)->pluck('shehia'))
+            ->merge(collect($pregByShehia)->pluck('shehia'))
+            ->unique()->values();
+
+        // Build stats rows
         $stats = [];
         foreach ($shehiaNames as $shName) {
             $cases = optional($casesByShehia->firstWhere('shehia', $shName))->disease_cases ?? 0;
             $meds  = optional($medByShehia->firstWhere('shehia', $shName))->meds_prescribed ?? 0;
+            $totalPatients = (int)($patientsByShehia[$shName] ?? 0);
+            $chronic = (int)(optional($chronicByShehia->firstWhere('shehia', $shName))->chronic_cases ?? 0);
+            $preg = (int)(optional($pregByShehia->firstWhere('shehia', $shName))->pregnancy_cases ?? 0);
             $stats[] = [
                 'shehia' => $shName,
                 'disease_cases' => (int)$cases,
                 'meds_prescribed' => (int)$meds,
+                'total_patients' => $totalPatients,
+                'chronic_cases' => $chronic,
+                'pregnancy_cases' => $preg,
             ];
         }
 
