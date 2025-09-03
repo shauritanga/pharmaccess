@@ -122,6 +122,10 @@
       setTimeout(() => m.invalidateSize(), 50);
     }
 
+    // Integrate with global dashboard loading state
+    if (window.dashboardLoading && typeof window.dashboardLoading.inc === 'function') {
+      window.dashboardLoading.inc();
+    }
     setStatus(containerId, 'Loading map data...');
 
     const mapRef = isShehia ? diseaseMap : medicationMap;
@@ -223,6 +227,10 @@
       // Swallow expected aborts silently
       if (err && (err.name === 'AbortError' || (err.message && err.message.toLowerCase().includes('abort')))) return;
       console.error('Geo heatmap error', err);
+    }).finally(() => {
+      if (window.dashboardLoading && typeof window.dashboardLoading.dec === 'function') {
+        window.dashboardLoading.dec();
+      }
     });
   }
 

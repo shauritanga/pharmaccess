@@ -427,26 +427,45 @@
     }
 
     /**
-     * Show loading state
+     * Show loading state (reference-counted)
      */
     function showLoadingState() {
-        // Add loading class to metric cards
-        const cards = document.querySelectorAll('.card h2');
-        cards.forEach(card => {
-            card.style.opacity = '0.5';
-        });
+        // Initialize counter
+        if (typeof window.__loadingCount === 'undefined') window.__loadingCount = 0;
+        window.__loadingCount++;
+        if (window.__loadingCount > 1) return; // already visible
+
+        // Dim key values
+        document.querySelectorAll('.card h2').forEach(card => { card.style.opacity = '0.5'; });
+
+        // Create global overlay spinner if not exists
+        if (!document.getElementById('global-loading')) {
+            const overlay = document.createElement('div');
+            overlay.id = 'global-loading';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:1050;background:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center';
+            overlay.innerHTML = '<div class="spinner-border text-primary" role="status" aria-label="Loading..."><span class="visually-hidden">Loading...</span></div>';
+            document.body.appendChild(overlay);
+        }
     }
 
     /**
-     * Hide loading state
+     * Hide loading state (reference-counted)
      */
     function hideLoadingState() {
-        // Remove loading class from metric cards
-        const cards = document.querySelectorAll('.card h2');
-        cards.forEach(card => {
-            card.style.opacity = '1';
-        });
+        if (typeof window.__loadingCount === 'undefined') window.__loadingCount = 0;
+        if (window.__loadingCount > 0) window.__loadingCount--;
+        if (window.__loadingCount > 0) return; // still waiting on other tasks
+
+        // Restore opacity
+        document.querySelectorAll('.card h2').forEach(card => { card.style.opacity = '1'; });
+
+        // Remove overlay
+        const overlay = document.getElementById('global-loading');
+        if (overlay) overlay.remove();
     }
+
+    // Expose loading controls for other modules (e.g., geo heatmaps)
+    window.dashboardLoading = { inc: showLoadingState, dec: hideLoadingState };
 
     /**
      * Show error message
