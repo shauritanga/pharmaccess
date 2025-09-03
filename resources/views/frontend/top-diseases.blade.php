@@ -33,12 +33,11 @@
                                 <!-- Disease Filter -->
                                 <div class="col-lg-4 col-md-6">
                                     <label for="diseaseFilter" class="form-label">Select Disease</label>
+                                    <input type="text" id="diseaseSearch" class="form-control mb-2" placeholder="Search ICD code or name..." />
                                     <select id="diseaseFilter" class="form-select">
                                         <option value="">All Diseases</option>
-                                        @foreach($availableDiseases as $disease)
-                                            <option value="{{ $disease->id }}">{{ $disease->name }} ({{ ucfirst($disease->category) }})</option>
-                                        @endforeach
                                     </select>
+                                    <small class="text-muted">Showing top results. Type to search to narrow down.</small>
                                 </div>
 
                                 <!-- Year Range Filter -->
@@ -148,7 +147,7 @@
             </div>
 
             <!-- Heat Map - Full Width -->
-            <div class="row gx-3">
+            <!-- <div class="row gx-3">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -165,7 +164,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
         </div>
         <!-- App body ends -->
     </div>
@@ -377,7 +376,32 @@
         function setupEventListeners() {
             document.getElementById('applyFilters').addEventListener('click', applyFilters);
             document.getElementById('resetFilters').addEventListener('click', resetFilters);
-            document.getElementById('perCapitaToggle').addEventListener('change', updateHeatMap);
+            const perCapitaToggle = document.getElementById('perCapitaToggle');
+            if (perCapitaToggle) perCapitaToggle.addEventListener('change', updateHeatMap);
+
+            // Auto-apply on change (like medication page)
+            const diseaseSelect = document.getElementById('diseaseFilter');
+            const diseaseSearch = document.getElementById('diseaseSearch');
+            const yearStart = document.getElementById('yearStart');
+            const yearEnd = document.getElementById('yearEnd');
+
+            ;[diseaseSelect, yearStart, yearEnd].forEach(el => {
+                if (!el) return;
+                el.addEventListener('change', () => {
+                    const filters = getCurrentFilters();
+                    fetchAnalyticsData(filters);
+                });
+            });
+
+            if (diseaseSearch) {
+                let searchTimeout;
+                diseaseSearch.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        loadDiseases(diseaseSearch.value.trim());
+                    }, 300);
+                });
+            }
 
             // Add window resize handler to fix chart rendering issues
             window.addEventListener('resize', debounce(function() {
@@ -420,8 +444,48 @@
 
         // Load initial data
         function loadInitialData() {
+            // Load diseases list (top-N) for better UX first
+            loadDiseases('');
             const filters = getCurrentFilters();
             fetchAnalyticsData(filters);
+        }
+        // Load diseases options (with search and top-N by frequency)
+        function loadDiseases(query) {
+            const select = document.getElementById('diseaseFilter');
+            if (!select) return;
+
+            const params = new URLSearchParams();
+            if (query) params.append('q', query);
+            params.append('limit', '200');
+
+            // Abort previous list request if any
+            if (window.__diseaseListController) {
+                try { window.__diseaseListController.abort(); } catch (_) {}
+            }
+            window.__diseaseListController = new AbortController();
+
+            fetch(`/api/diseases/available-diseases?${params}`, { signal: window.__diseaseListController.signal })
+                .then(r => r.json())
+                .then(json => {
+                    if (!json.success) return;
+                    const selected = select.value;
+                    // Rebuild options
+                    select.innerHTML = '<option value="">All Diseases</option>';
+                    (json.diseases || []).forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        const label = d.code ? `${d.code} - ${d.name}` : d.name;
+                        opt.textContent = label;
+                        select.appendChild(opt);
+                    });
+                    // Restore selection if still present
+                    if (selected && [...select.options].some(o => o.value === selected)) {
+                        select.value = selected;
+                    }
+                })
+                .catch(err => {
+                    if (err.name !== 'AbortError') console.error('Disease list fetch error:', err);
+                });
         }
 
         // Force refresh all charts (useful for fixing rendering issues)
@@ -495,7 +559,10 @@
             if (filters.year_start) params.append('year_start', filters.year_start);
             if (filters.year_end) params.append('year_end', filters.year_end);
 
-            fetch(`/api/diseases/analytics-data?${params}`)
+            // Cancel any prior in-flight analytics request to keep UI snappy
+            if (window.__diseaseFetchController) { try { window.__diseaseFetchController.abort(); } catch (_) {} }
+            window.__diseaseFetchController = new AbortController();
+            fetch(`/api/diseases/analytics-data?${params}`, { signal: window.__diseaseFetchController.signal })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -518,8 +585,10 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Fetch Error:', error);
-                    showError('Network error: ' + error.message);
+                    if (error.name !== 'AbortError') {
+                        console.error('Fetch Error:', error);
+                        showError('Network error: ' + error.message);
+                    }
                 })
                 .finally(() => {
                     showLoading(false);
@@ -605,7 +674,7 @@
                     try { updateDistrictChart(data.district_distribution); } catch (e) { console.error('District chart error:', e); }
                 }
 
-                if (data.heatmap_data) {
+                if (data.heatmap_data && data.heatmap_data.length) {
                     try { updateHeatMap(data.heatmap_data); } catch (e) { console.error('Heat map error:', e); }
                 }
 
@@ -752,16 +821,28 @@
             charts.ageGroup.render();
         }
 
-        // Update economic status chart
-        function updateEconomicChart(data) {
+        // Update economic status chart (Low vs High only)
+        function updateEconomicChart(raw) {
+            // Normalize incoming data to exactly two buckets: Low and High
+            const labels = (raw && raw.labels) ? raw.labels : [];
+            const values = (raw && raw.data) ? raw.data : [];
+            let low = 0, high = 0;
+            labels.forEach((lbl, idx) => {
+                const val = Number(values[idx] || 0);
+                const norm = String(lbl || '').trim().toLowerCase();
+                if (norm === 'high') high += val; else low += val; // collapse anything not 'high' into low
+            });
+            const series = [low, high];
+            const finalLabels = ['Low', 'High'];
+
             const options = {
                 chart: {
                     type: 'donut',
-                    height: 380 // Consistent height for row 2
+                    height: 380
                 },
-                series: data.data || [],
-                labels: data.labels || [],
-                colors: ['#dc3545', '#ffc107', '#28a745'],
+                series: series,
+                labels: finalLabels,
+                colors: ['#dc3545', '#16a34a'], // red for Low, green for High
                 legend: {
                     position: 'bottom'
                 },
@@ -773,7 +854,7 @@
             if (charts.economic) {
                 charts.economic.destroy();
             }
-            charts.economic = new ApexCharts(document.querySelector("#economicChart"), options);
+            charts.economic = new ApexCharts(document.querySelector('#economicChart'), options);
             charts.economic.render();
         }
 

@@ -38,6 +38,8 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/medication', [FrontController::class,'medication'])->name('medication');
     Route::get('/top-diseases', [FrontController::class,'showTopDiseases'])->name('top-diseases');
+// Chronic diseases page
+Route::get('/chronic', [\App\Http\Controllers\FrontController::class, 'showChronicDiseases'])->name('chronic');
     Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
     Route::post('/settings/password', [\App\Http\Controllers\SettingsController::class, 'updatePassword'])->name('settings.password');
     Route::get('/patients', [FrontController::class, 'patients'])->name('patients');
@@ -66,9 +68,15 @@ Route::prefix('api/medication-analytics')->group(function () {
     Route::get('/', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAnalyticsData'])->name('api.medication.analytics');
     Route::get('/available-medications', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAvailableMedications'])->name('api.medication.available');
     Route::get('/available-years', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getAvailableYears'])->name('api.medication.years');
+    Route::get('/usage-table', [\App\Http\Controllers\MedicationAnalyticsController::class, 'getUsageTable'])->name('api.medication.usage_table');
 });
 
 // Facilities API (list + attendance monthly) (public)
+// Chronic diseases analytics API
+Route::prefix('api/chronic-analytics')->group(function () {
+    Route::get('/', [\App\Http\Controllers\ChronicAnalyticsController::class, 'getAnalyticsData'])->name('api.chronic.analytics');
+    Route::get('/available-years', [\App\Http\Controllers\ChronicAnalyticsController::class, 'getAvailableYears'])->name('api.chronic.years');
+});
 Route::prefix('api/facilities')->group(function () {
     Route::get('/list', [FrontController::class, 'getFacilities'])->name('api.facilities.list');
     Route::get('/attendance', [FrontController::class, 'getFacilityAttendance'])->name('api.facilities.attendance');

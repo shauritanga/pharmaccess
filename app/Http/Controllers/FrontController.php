@@ -655,35 +655,30 @@ class FrontController extends Controller
     public function medication(Request $request)
     {
         try {
-            // Get available medications from database (or create sample data if none exist)
-            $availableMedications = \App\Models\Medication::select('id', 'name', 'category')
-                ->orderBy('name')
+            // Available medications from items table only (top by total quantity)
+            $availableMedications = DB::table('items')
+                ->select('item_id as id', DB::raw('MAX(item_name) as name'), DB::raw('SUM(COALESCE(qty_provided,1)) as total_usage'))
+                ->groupBy('item_id')
+                ->orderByDesc('total_usage')
+                ->limit(200)
                 ->get();
 
-            // If no medications exist, create sample data
-            if ($availableMedications->isEmpty()) {
-                $this->createSampleMedications();
-                $availableMedications = \App\Models\Medication::select('id', 'name', 'category')
-                    ->orderBy('name')
-                    ->get();
-            }
-
-            // Get available years from prescriptions (or default range)
-            $availableYears = \App\Models\Prescription::selectRaw('DISTINCT YEAR(prescribed_date) as year')
+            // Get available years from visit_data
+            $availableYears = DB::table('visit_data')->selectRaw('DISTINCT YEAR(date_from) as year')
                 ->orderBy('year', 'desc')
                 ->pluck('year')
                 ->toArray();
 
             if (empty($availableYears)) {
-                $availableYears = range(2020, 2025);
+                $availableYears = [date('Y')];
             }
 
             // Set default years
             $currentYear = date('Y');
             $startYear = !empty($availableYears) ? min($availableYears) : 2020;
 
-            // Get total prescriptions count
-            $totalPrescriptions = \App\Models\Prescription::count();
+            // Get total medication usage (sum of quantities)
+            $totalPrescriptions = (int) DB::table('items')->sum(DB::raw('COALESCE(qty_provided,1)'));
 
             return view('frontend.medication', compact(
                 'availableMedications',
@@ -756,25 +751,16 @@ class FrontController extends Controller
 
     public function showChronicDiseases()
     {
-    $chronicDiseases = [
-        ['name' => 'Diabetes', 'cases' => 1250],
-        ['name' => 'Hypertension', 'cases' => 980],
-        ['name' => 'Asthma', 'cases' => 670],
-        ['name' => 'Heart Disease', 'cases' => 520],
-        // Add more if needed
-    ];
-
-    return view('frontend.chronic-diseases', compact('chronicDiseases'));
+        // Render the chronic diseases analytics page (data loaded via API using visit_data + icd_codes)
+        return view('frontend.chronic');
     }
 
     public function showTopDiseases()
     {
         // Get available diseases and years for filters
-        $availableDiseases = \App\Models\Disease::select('id', 'name', 'category')
-            ->orderBy('name')
-            ->get();
+        $availableDiseases = DB::table('icd_codes')->select('icd_id as id', 'icd_name as name')->orderBy('icd_name')->get();
 
-        $availableYears = \App\Models\DiseaseCase::selectRaw('YEAR(reported_date) as year')
+        $availableYears = DB::table('visit_data')->selectRaw('YEAR(date_from) as year')
             ->distinct()
             ->orderBy('year')
             ->pluck('year')
@@ -784,19 +770,16 @@ class FrontController extends Controller
         $currentYear = date('Y');
         $startYear = !empty($availableYears) ? min($availableYears) : 2020;
 
-        // Get initial data for the table (top diseases by case count)
-        $diseases = \App\Models\Disease::withCount(['diseaseCases' => function ($query) {
-                $query->whereYear('reported_date', date('Y'));
-            }])
-            ->orderBy('disease_cases_count', 'desc')
-            ->take(10)
+        // Get initial data for the table (top diseases by case count) from visit_data + icd_codes in current year
+        $diseases = DB::table('visit_data as v')
+            ->join('icd_codes as ic', 'ic.icd_id', '=', 'v.icd_id')
+            ->whereYear('v.date_from', date('Y'))
+            ->select('ic.icd_name as name', DB::raw('COUNT(*) as cases'))
+            ->groupBy('ic.icd_id', 'ic.icd_name')
+            ->orderByDesc('cases')
+            ->limit(10)
             ->get()
-            ->map(function ($disease) {
-                return [
-                    'name' => $disease->name,
-                    'cases' => $disease->disease_cases_count
-                ];
-            })
+            ->map(function ($r) { return ['name' => $r->name, 'cases' => (int)$r->cases]; })
             ->toArray();
 
         return view('frontend.top-diseases', compact(

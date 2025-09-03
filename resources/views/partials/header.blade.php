@@ -15,10 +15,10 @@
   <!-- App brand starts -->
   <div class="app-brand ms-3">
     <a href="{{ route('home') }}" class="d-lg-block d-none">
-      <img src="{{ asset('assets/images/Asset 2.png') }}" class="logo" alt="Medicare Admin Template">
+      <img src="{{ asset('assets/images/Asset 2.png') }}" class="logo" alt="PharmAccess Logo">
     </a>
     <a href="{{ route('home') }}" class="d-lg-none d-md-block">
-      <img src="{{ asset('assets/images/Asset 2.svg') }}" class="logo" alt="Medicare Admin Template">
+      <img src="{{ asset('assets/images/Asset 2.png') }}" class="logo" alt="PharmAccess Logo">
     </a>
   </div>
   <!-- App brand ends -->

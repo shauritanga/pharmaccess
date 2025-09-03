@@ -59,7 +59,7 @@
                                     <select id="medicationFilter" class="form-select">
                                         <option value="">All Medications</option>
                                         @foreach($availableMedications as $medication)
-                                            <option value="{{ $medication->id }}">{{ $medication->name }} ({{ ucfirst($medication->category) }})</option>
+                                            <option value="{{ $medication->id }}">{{ $medication->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -105,7 +105,7 @@
             <!-- First Row: Monthly Trends (Line) and Gender Distribution -->
             <div class="row gx-3 chart-row-1">
                 <!-- Monthly Prescription Trends Chart (Line Chart) -->
-                <div class="col-xxl-8 col-lg-8 col-sm-12">
+                <div class="col-12">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5 class="card-title">Monthly Prescription Trends</h5>
@@ -116,23 +116,13 @@
                     </div>
                 </div>
 
-                <!-- Gender Distribution Chart -->
-                <div class="col-xxl-4 col-lg-4 col-sm-12">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Prescriptions by Gender</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="genderChart"></div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Gender Distribution Chart - removed -->
             </div>
 
             <!-- Second Row: Age Group and Medication Category -->
             <div class="row gx-3 chart-row-2">
                 <!-- Age Group Distribution Chart -->
-                <div class="col-xxl-6 col-lg-6 col-sm-12">
+                <div class="col-12">
                     <div class="card mb-3">
                         <div class="card-header">
                             <h5 class="card-title">Prescriptions by Age Group</h5>
@@ -143,17 +133,7 @@
                     </div>
                 </div>
 
-                <!-- Economic Status Chart -->
-                <div class="col-xxl-6 col-lg-6 col-sm-12">
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title">Prescriptions by Economic Status</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="economicChart"></div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Economic Status Chart - removed -->
             </div>
 
             <!-- Third Row: District Distribution - Full Width -->
@@ -169,9 +149,44 @@
                     </div>
                 </div>
             </div>
+            <!-- Usage Table - Full Width with pagination -->
+            <div class="row gx-3">
+                <div class="col-12">
+                    <div class="card mb-3">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="card-title m-0">Medication Usage (Selected Period)</h5>
+                            <div class="d-flex gap-2">
+                                <input type="text" id="usageSearch" class="form-control form-control-sm" placeholder="Search medication name or ID" style="max-width: 260px;" />
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">Item ID</th>
+                                            <th>Name</th>
+                                            <th class="text-end" style="width: 180px;">Total Usage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usageTableBody">
+                                        <tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <small id="usageTableSummary" class="text-muted"></small>
+                                <nav>
+                                    <ul class="pagination pagination-sm mb-0" id="usagePagination"></ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Heat Map - Full Width -->
-            <div class="row gx-3">
+            <!-- <div class="row gx-3">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -188,7 +203,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
         </div>
         <!-- App body ends -->
@@ -211,6 +226,13 @@
         .filter-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            position: relative;
+            z-index: 1001; /* ensure above map or other layers */
+        }
+        .filter-section .form-select {
+            position: relative;
+            z-index: 1002;
+            pointer-events: auto;
         }
 
         /* Enforce consistent chart container heights per row */
@@ -235,14 +257,12 @@
             justify-content: center;
         }
 
-        .chart-row-1 #monthlyChart,
-        .chart-row-1 #genderChart {
+        .chart-row-1 #monthlyChart {
             height: 400px !important;
             width: 100%;
         }
 
-        .chart-row-2 #ageGroupChart,
-        .chart-row-2 #economicChart {
+        .chart-row-2 #ageGroupChart {
             height: 380px !important;
             width: 100%;
         }
@@ -257,6 +277,8 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1;
         }
 
         .heat-legend {
@@ -367,13 +389,15 @@
             function setupEventListeners() {
                 document.getElementById('applyFilters').addEventListener('click', applyFilters);
                 document.getElementById('resetFilters').addEventListener('click', resetFilters);
-                document.getElementById('perCapitaToggle').addEventListener('change', updateHeatMap);
+                const perCapitaToggleEl = document.getElementById('perCapitaToggle');
+                if (perCapitaToggleEl) perCapitaToggleEl.addEventListener('change', updateHeatMap);
 
                 // Add medication selection change listener
                 document.getElementById('medicationFilter').addEventListener('change', function() {
                     const filters = getCurrentFilters();
                     showLoading(true);
                     fetchAnalyticsData(filters);
+                    fetchUsageTable(filters, 1);
                 });
 
                 // Add year selection change listeners
@@ -381,12 +405,14 @@
                     const filters = getCurrentFilters();
                     showLoading(true);
                     fetchAnalyticsData(filters);
+                    fetchUsageTable(filters, 1);
                 });
 
                 document.getElementById('yearEnd').addEventListener('change', function() {
                     const filters = getCurrentFilters();
                     showLoading(true);
                     fetchAnalyticsData(filters);
+                    fetchUsageTable(filters, 1);
                 });
 
                 // Add window resize handler to fix chart rendering issues
@@ -401,6 +427,18 @@
                     return;
                 }
 
+                // Search field for usage table
+                const usageSearch = document.getElementById('usageSearch');
+                if (usageSearch) {
+                    let t;
+                    usageSearch.addEventListener('input', () => {
+                        clearTimeout(t);
+                        t = setTimeout(() => {
+                            const filters = getCurrentFilters();
+                            fetchUsageTable(filters, 1);
+                        }, 300);
+                    });
+                }
                 window.medicationAnalyticsInitialized = true;
 
                 console.log('Initializing medication analytics...');
@@ -499,27 +537,118 @@
 
             // Fetch analytics data from API
             function fetchAnalyticsData(filters) {
-                const params = new URLSearchParams(filters);
+                const params = new URLSearchParams();
+                if (filters.medications && filters.medications.length > 0) {
+                    filters.medications.forEach(id => params.append('medications[]', id));
+                }
+                if (filters.year_start) params.append('year_start', filters.year_start);
+                if (filters.year_end) params.append('year_end', filters.year_end);
 
-                fetch(`${API_BASE}?${params}`)
+                // Cancel in-flight request to keep UI snappy
+                if (window.__medFetchCtl) { try { window.__medFetchCtl.abort(); } catch (_) {} }
+                window.__medFetchCtl = new AbortController();
+
+                fetch(`${API_BASE}?${params}`, { signal: window.__medFetchCtl.signal })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             currentData = data.charts;
                             updateAllCharts(data.charts);
                             updateChartTitles(filters);
-                            showSuccess('Medication analytics updated successfully');
                         } else {
                             console.error('API Error:', data);
                             showError('Failed to load medication analytics: ' + (data.message || 'Unknown error'));
                         }
                     })
                     .catch(error => {
-                        console.error('Fetch Error:', error);
-                        showError('Failed to fetch medication analytics data');
+                        if (error.name !== 'AbortError') {
+                            console.error('Fetch Error:', error);
+                            showError('Failed to fetch medication analytics data');
+                        }
                     })
                     .finally(() => {
+                        // Always refresh usage table with the same filters and hide loader
+                        fetchUsageTable(filters, 1);
                         showLoading(false);
+                    });
+            }
+
+            // Fetch paginated usage table
+            function fetchUsageTable(filters, page) {
+                const params = new URLSearchParams();
+                if (filters.medications && filters.medications.length > 0) {
+                    filters.medications.forEach(id => params.append('medications[]', id));
+                }
+                if (filters.year_start) params.append('year_start', filters.year_start);
+                if (filters.year_end) params.append('year_end', filters.year_end);
+                if (page) params.append('page', page);
+                const q = document.getElementById('usageSearch')?.value?.trim();
+                if (q) params.append('q', q);
+
+                const bodyEl = document.getElementById('usageTableBody');
+                const paginationEl = document.getElementById('usagePagination');
+                const summaryEl = document.getElementById('usageTableSummary');
+                if (bodyEl) bodyEl.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>';
+                if (paginationEl) paginationEl.innerHTML = '';
+                if (summaryEl) summaryEl.textContent = '';
+
+                fetch(`/api/medication-analytics/usage-table?${params}`)
+                    .then(r => r.json())
+                    .then(json => {
+                        if (!json.success) throw new Error(json.message || 'Failed');
+                        const rows = json.rows || [];
+                        if (bodyEl) {
+                            if (rows.length === 0) {
+                                bodyEl.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+                            } else {
+                                bodyEl.innerHTML = rows.map(r => `
+                                    <tr>
+                                        <td>${r.id}</td>
+                                        <td>${r.name || ''}</td>
+                                        <td class="text-end">${Number(r.total_usage || 0).toLocaleString()}</td>
+                                    </tr>
+                                `).join('');
+                            }
+                        }
+
+                        // Build pagination
+                        if (paginationEl) {
+                            const total = json.total || 0;
+                            const perPage = json.per_page || 20;
+                            const current = json.page || 1;
+                            const totalPages = Math.max(1, Math.ceil(total / perPage));
+                            const mk = (p, label, disabled, active) => `
+                                <li class="page-item ${disabled?'disabled':''} ${active?'active':''}">
+                                    <a class="page-link" href="#" data-page="${p}">${label}</a>
+                                </li>`;
+                            let html = '';
+                            html += mk(current-1, '&laquo;', current<=1, false);
+                            const start = Math.max(1, current-2);
+                            const end = Math.min(totalPages, current+2);
+                            for (let p=start; p<=end; p++) html += mk(p, p, false, p===current);
+                            html += mk(current+1, '&raquo;', current>=totalPages, false);
+                            paginationEl.innerHTML = html;
+                            paginationEl.querySelectorAll('a.page-link').forEach(a => {
+                                a.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    const p = parseInt(a.dataset.page, 10);
+                                    if (!isNaN(p)) fetchUsageTable(filters, p);
+                                });
+                            });
+                        }
+
+                        if (summaryEl) {
+                            const total = json.total || 0;
+                            const pageNum = json.page || 1;
+                            const perPage = json.per_page || 20;
+                            const from = total ? ((pageNum-1)*perPage)+1 : 0;
+                            const to = Math.min(total, pageNum*perPage);
+                            summaryEl.textContent = `Showing ${from}-${to} of ${total.toLocaleString()} items`;
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Usage table error:', err);
+                        if (bodyEl) bodyEl.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load</td></tr>';
                     });
             }
 
@@ -534,9 +663,7 @@
                 // Update card titles
                 const titles = [
                     { selector: '.card:has(#monthlyChart) .card-title', text: 'Monthly Prescription Trends' + titleSuffix },
-                    { selector: '.card:has(#genderChart) .card-title', text: 'Prescriptions by Gender' + titleSuffix },
                     { selector: '.card:has(#ageGroupChart) .card-title', text: 'Prescriptions by Age Group' + titleSuffix },
-                    { selector: '.card:has(#economicChart) .card-title', text: 'Prescriptions by Economic Status' + titleSuffix },
                     { selector: '.card:has(#districtChart) .card-title', text: 'Prescriptions by District' + titleSuffix }
                 ];
 
@@ -562,16 +689,8 @@
                         try { updateMonthlyChart(data.monthly_distribution); } catch (e) { console.error('Monthly chart error:', e); }
                     }
 
-                    if (data.gender_distribution) {
-                        try { updateGenderChart(data.gender_distribution); } catch (e) { console.error('Gender chart error:', e); }
-                    }
-
                     if (data.age_group_distribution) {
                         try { updateAgeGroupChart(data.age_group_distribution); } catch (e) { console.error('Age chart error:', e); }
-                    }
-
-                    if (data.economic_status_distribution) {
-                        try { updateEconomicChart(data.economic_status_distribution); } catch (e) { console.error('Economic chart error:', e); }
                     }
 
                     if (data.district_distribution) {
@@ -689,64 +808,8 @@
             }
 
             // Update gender distribution chart
-            function updateGenderChart(data) {
-                const container = document.getElementById('genderChart');
-                if (!container) return;
-
-                // Destroy existing chart
-                if (charts.gender) {
-                    charts.gender.destroy();
-                }
-
-                const options = {
-                    chart: {
-                        type: 'donut',
-                        height: 400
-                    },
-                    series: data.data || [],
-                    labels: data.labels || [],
-                    colors: ['#3b82f6', '#ec4899'], // Blue for male, pink for female
-                    legend: {
-                        position: 'bottom',
-                        fontSize: '14px'
-                    },
-                    plotOptions: {
-                        pie: {
-                            donut: {
-                                size: '60%',
-                                labels: {
-                                    show: true,
-                                    total: {
-                                        show: true,
-                                        label: 'Total',
-                                        formatter: function(w) {
-                                            return w.globals.seriesTotals.reduce((a, b) => a + b, 0).toLocaleString();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    tooltip: {
-                        y: {
-                            formatter: function(value) {
-                                return value.toLocaleString() + ' prescriptions';
-                            }
-                        }
-                    },
-                    title: {
-                        text: 'Gender Distribution',
-                        align: 'center',
-                        style: {
-                            fontSize: '16px',
-                            fontWeight: 'bold'
-                        }
-                    }
-                };
-
-                charts.gender = new ApexCharts(container, options);
-                charts.gender.render();
-            }
+            // Gender chart removed
+            function updateGenderChart() { /* removed */ }
 
             // Update age group chart
             function updateAgeGroupChart(data) {
@@ -812,67 +875,8 @@
             }
 
             // Update economic status chart
-            function updateEconomicChart(data) {
-                const container = document.getElementById('economicChart');
-                if (!container) return;
-
-                // Destroy existing chart
-                if (charts.economic) {
-                    charts.economic.destroy();
-                }
-
-                const options = {
-                    chart: {
-                        type: 'bar',
-                        height: 380
-                    },
-                    series: [{
-                        name: 'Prescriptions',
-                        data: data.data || [],
-                        color: '#f59e0b'
-                    }],
-                    xaxis: {
-                        categories: data.labels || [],
-                        title: {
-                            text: 'Economic Status'
-                        }
-                    },
-                    yaxis: {
-                        title: {
-                            text: 'Number of Prescriptions'
-                        },
-                        labels: {
-                            formatter: function(value) {
-                                return Math.round(value).toLocaleString();
-                            }
-                        }
-                    },
-                    plotOptions: {
-                        bar: {
-                            borderRadius: 4,
-                            horizontal: false
-                        }
-                    },
-                    tooltip: {
-                        y: {
-                            formatter: function(value) {
-                                return value.toLocaleString() + ' prescriptions';
-                            }
-                        }
-                    },
-                    title: {
-                        text: 'Economic Status Distribution',
-                        align: 'center',
-                        style: {
-                            fontSize: '16px',
-                            fontWeight: 'bold'
-                        }
-                    }
-                };
-
-                charts.economic = new ApexCharts(container, options);
-                charts.economic.render();
-            }
+            // Economic status chart removed
+            function updateEconomicChart() { /* removed */ }
 
             // Update district distribution chart
             function updateDistrictChart(data) {
